@@ -11,6 +11,7 @@ An interactive 3D website about Polynesian wayfinding: the art of crossing thous
 - **Star compass:** an interactive rose with the 32 houses of the horizon, keyboard-navigable, with per-house reference stars that appear in night mode.
 - **Augmented reality:** "view in your space" opens the device camera: on Android, a WebXR session with an aiming ring that tracks the floor and places the canoe at its real 19-meter size on tap; on iPhone and iPad, the same button launches AR Quick Look with a USDZ model.
 - **Immersive hall:** a first-person gallery of four voyaging canoes (Hōkūleʻa, Tipairua, Te Aurere, Te Puke). Walk with WASD and pointer lock on desktop, drag-to-look and auto-travel on mobile; standing in a floor circle raises the spotlight over the vessel and opens an information panel with a real photograph and technical data.
+- **The crossing:** a playable night voyage on its own page. Hold the guide star over the bow, follow the star path through its handoffs, read the signs of land and make landfall before the drift wins. Keyboard, mouse or touch.
 - **Day / night mode:** the whole scene rig (sky, sun, rim light, sea color) switches between navigation conditions, persisted across visits.
 
 ## Technologies

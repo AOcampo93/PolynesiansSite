@@ -148,6 +148,37 @@ export const CFG = {
     luz: { ambiente: 1.0, sol: 1.0 } // light intensities inside the AR session
   },
 
+  /* ── star-path voyage mini-game (game.html) ──────────────────────────── */
+  juego: {
+    fov: 52, fovMovil: 60,          // chase camera field of view (desktop / screens < 620px)
+    camara: { atras: 8.2, altura: 3.6, mirada: 1.6 }, // chase cam: distance behind the boat, height, look-at height
+    bote: { modelo: 2, eslora: 7, quillaY: -0.6, giro: 0, escora: 0.16 },
+      // GLB index (Boat3), length, keel height, extra yaw if the bow points backwards (0 or Math.PI), heel while steering
+    balanceo: { rotZ: 0.05, periodoZ: 3.6, rotX: 0.025, periodoX: 5, subida: 0.16, periodoY: 4.2 },
+      // sway with the swell (same fields as heroe.balanceo)
+    rumboObjetivo: 112.5,           // island bearing in degrees (the house of Hikianalia)
+    distancia: 108,                 // crossing length in game units
+    velocidad: 1.5,                 // hull speed in units/s (108 / 1.5 = 72 s on a perfect course)
+    giro: 40,                       // steering rate in deg/s while a key or button is held
+    deriva: { fuerza: 3.0, periodo: 24, sesgo: 0.55 },
+      // current push in deg/s: sesgo = constant fraction, the rest oscillates with this period (s); sign random per attempt
+    tolerancia: 22,                 // heading error in degrees beyond which you are off course
+    aviso: 1.2,                     // off-course seconds before the warning lights up
+    fallo: { segundos: 8, alivio: 2 },  // sustained off-course seconds to miss the island · timer drain rate back on course
+    cielo: { fondo: 0x030a10, radio: 88, estrellas: 460, tam: 1.6, opacidad: 0.85 },
+      // night dome: background color, dome radius, star count, point size (px), star brightness
+    niebla: { cerca: 26, lejos: 80 }, // fog distances (hides the ocean rim and fades the island in)
+    estrellaGuia: { color: 0xffe9b0, tam: 7, altInicial: 10, altTraspaso: 34, pulso: 2.4 },
+      // guide star sprite: tint, size, starting altitude (deg), altitude reached at each handoff, handoff pulse speed
+    camino: ['Hikianalia', 'Nā Kao', 'Hōkūleʻa'], // star path read out in the HUD, one handoff per boundary
+    mar: { radio: 46, anillos: 26, sectores: 80 }, // overrides merged over CFG.mar for the larger night ocean
+    senales: {                      // land signs, as fractions of total progress
+      aves: { progreso: 0.55, cantidad: 6, radio: 16, altura: 3.4, vel: 0.5, tam: 0.34 }, // terns crossing ahead
+      nube: { progreso: 0.62, altura: 10, escala: 5.5, color: 0x9aa4a8, opacidad: 0.8 },  // lone cumulus over the island
+      isla: { progreso: 0.8, radio: 7, alto: 3, color: 0x101b16 }                          // island cone past the horizon
+    }
+  },
+
   /* ── procedural canoe (anatomy scene and fallback if GLBs fail) ──────── */
   canoa: {
     colorKoa: 0x5b3a23,            // hull wood
@@ -317,11 +348,12 @@ const BOAT_URLS = CFG.botes.archivos.map(f => new URL('./models/' + f, import.me
 let boatsPromise = null;
 
 const progressCbs = [];
+let loaderPromise = null;
 
-// Loads the three GLBs only once (Draco-compressed); each entry can be null on failure.
-function loadBoats() {
-  if (!boatsPromise) {
-    boatsPromise = Promise.all([
+// Shared GLTFLoader with Draco support (one instance for every scene and page).
+function getLoader() {
+  if (!loaderPromise) {
+    loaderPromise = Promise.all([
       import('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js/+esm'),
       import('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/DRACOLoader.js/+esm')
     ]).then(([{ GLTFLoader }, { DRACOLoader }]) => {
@@ -329,6 +361,34 @@ function loadBoats() {
       draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/libs/draco/');
       const loader = new GLTFLoader();
       loader.setDRACOLoader(draco);
+      return loader;
+    });
+  }
+  return loaderPromise;
+}
+
+const singleBoat = {};
+
+// Downloads a single GLB by index (the game page only needs one model).
+export function loadOneBoat(i, onProgress) {
+  if (singleBoat[i]) {
+    if (onProgress) singleBoat[i].then(() => onProgress(1));
+    return singleBoat[i];
+  }
+  singleBoat[i] = getLoader().then(loader =>
+    new Promise(res => loader.load(BOAT_URLS[i],
+      g => { onProgress && onProgress(1); res(g.scene); },
+      e => { if (onProgress && e && e.total) onProgress(Math.min(0.99, e.loaded / e.total)); },
+      () => res(null)
+    ))
+  ).catch(() => null);
+  return singleBoat[i];
+}
+
+// Loads the three GLBs only once (Draco-compressed); each entry can be null on failure.
+function loadBoats() {
+  if (!boatsPromise) {
+    boatsPromise = getLoader().then(loader => {
       const prog = BOAT_URLS.map(() => 0);
       const emit = () => {
         const p = prog.reduce((a, b) => a + b, 0) / prog.length;
@@ -406,8 +466,8 @@ function lightRig(THREE, scene) {
 }
 
 /* ---------- low-poly ocean (polar disc with swell) ---------- */
-function makeOcean(THREE) {
-  const M = CFG.mar;
+function makeOcean(THREE, over = {}) {
+  const M = { ...CFG.mar, ...over };
   const R = M.radio, rings = M.anillos, sectors = M.sectores;
   const base = [], pos = [], idx = [];
   for (let i = 0; i <= rings; i++) {
@@ -433,7 +493,8 @@ function makeOcean(THREE) {
   return {
     mesh,
     setMode(m) { mat.color.set(m === 'night' ? M.colorNoche : M.colorDia); },
-    update(t) {
+    // ox / oz shift the wave phase so a "moving" boat sees the swell stream past
+    update(t, ox = 0, oz = 0) {
       for (let k = 0; k < base.length; k++) {
         const x = base[k][0], z = base[k][1], r = base[k][2];
         const fade = 1 - Math.max(0, (r - R * M.bordeSuave) / (R * (1 - M.bordeSuave)));
@@ -441,7 +502,7 @@ function makeOcean(THREE) {
         let h = 0;
         for (let w = 0; w < M.olas.length; w++) {
           const o = M.olas[w];
-          h += o.amp * Math.sin(x * o.fx + z * o.fz + t * o.vel + o.fase);
+          h += o.amp * Math.sin((x + ox) * o.fx + (z + oz) * o.fz + t * o.vel + o.fase);
         }
         attr.setY(k, h * fade - dip);
       }
@@ -980,4 +1041,295 @@ export async function startAR(THREE, opts = {}) {
   });
 
   return { ok: true, end: () => session.end() };
+}
+
+/* ---------- star-path voyage mini-game (game.html) ---------- */
+// Houses of the horizon (one name per 11.25° step), for the HUD heading readout.
+const GAME_HOUSES = (() => {
+  const NAMES = ['Haka', 'Nā Leo', 'Nālani', 'Manu', 'Noio', 'ʻĀina', 'Lā'];
+  const CARD = { 0: 'ʻĀkau', 8: 'Hikina', 16: 'Hema', 24: 'Komohana' };
+  const QUAD = { 1: 'Koʻolau', 2: 'Malanai', 3: 'Kona', 4: 'Hoʻolua' };
+  const out = [];
+  for (let i = 0; i < 32; i++) {
+    if (CARD[i] != null) { out.push(CARD[i]); continue; }
+    const q = Math.floor(i / 8) + 1;
+    const within = i % 8;
+    const idx = q % 2 === 1 ? within - 1 : 7 - within;
+    out.push(NAMES[Math.round(idx)] + ' ' + QUAD[q]);
+  }
+  return out;
+})();
+
+function starTexture(THREE, cssColor) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.25, cssColor);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
+/** Night voyage: hold the guide star over the bow, follow the star path, make landfall. */
+export function createGameScene(THREE, canvas, opts = {}) {
+  const J = CFG.juego;
+  const S = J.senales;
+  const onTick = opts.onTick || (() => {});
+  const onEvent = opts.onEvent || (() => {});
+  const D2R = Math.PI / 180;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(J.cielo.fondo);
+  scene.fog = new THREE.Fog(J.cielo.fondo, J.niebla.cerca, J.niebla.lejos);
+  const renderer = makeRenderer(THREE, canvas, false);
+  const camera = new THREE.PerspectiveCamera(J.fov, 1, 0.1, J.cielo.radio * 2.5);
+  camera.position.set(0, J.camara.altura, J.camara.atras);
+  camera.lookAt(0, J.camara.mirada, -6);
+  const lights = lightRig(THREE, scene);
+  lights.setMode('night');
+  const water = makeOcean(THREE, J.mar);
+  water.setMode('night');
+  scene.add(water.mesh);
+
+  // everything at an absolute bearing lives in this group, rotated by the heading
+  const world = new THREE.Group();
+  scene.add(world);
+
+  // starfield dome (fog:false or the scene fog swallows the sky)
+  const starGeo = new THREE.BufferGeometry();
+  {
+    const pos = [];
+    for (let i = 0; i < J.cielo.estrellas; i++) {
+      const az = Math.random() * Math.PI * 2;
+      const alt = Math.asin(Math.random()) * 0.96 + 0.02;
+      const r = J.cielo.radio;
+      pos.push(Math.sin(az) * Math.cos(alt) * r, Math.sin(alt) * r, -Math.cos(az) * Math.cos(alt) * r);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  }
+  const starMat = new THREE.PointsMaterial({ color: 0xf2e9d8, size: J.cielo.tam, sizeAttenuation: false, transparent: true, opacity: J.cielo.opacidad, fog: false, depthWrite: false });
+  world.add(new THREE.Points(starGeo, starMat));
+
+  // guide star (current) + preview of the next star in the path
+  const starTex = starTexture(THREE, '#' + J.estrellaGuia.color.toString(16).padStart(6, '0'));
+  const mkGuide = () => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, transparent: true, depthTest: false, fog: false }));
+    sp.scale.setScalar(J.estrellaGuia.tam);
+    world.add(sp);
+    return sp;
+  };
+  const guideA = mkGuide(), guideB = mkGuide();
+  const placeOnDome = (sp, azDeg, altDeg, r = J.cielo.radio * 0.96) => {
+    const az = azDeg * D2R, alt = altDeg * D2R;
+    sp.position.set(Math.sin(az) * Math.cos(alt) * r, Math.sin(alt) * r, -Math.cos(az) * Math.cos(alt) * r);
+  };
+
+  // land signs: island cone, lone cumulus, terns
+  const island = new THREE.Mesh(
+    new THREE.ConeGeometry(S.isla.radio, S.isla.alto, 7),
+    new THREE.MeshStandardMaterial({ color: S.isla.color, flatShading: true })
+  );
+  world.add(island);
+  const cloudMat = new THREE.MeshStandardMaterial({ color: S.nube.color, flatShading: true, transparent: true, opacity: 0 });
+  const cloud = new THREE.Group();
+  for (let i = 0; i < 5; i++) {
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0), cloudMat);
+    b.position.set((Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 0.7, (Math.random() - 0.5) * 1.2);
+    b.scale.setScalar(0.55 + Math.random() * 0.8);
+    cloud.add(b);
+  }
+  cloud.scale.setScalar(S.nube.escala);
+  world.add(cloud);
+  const birdGeo = new THREE.BufferGeometry();
+  birdGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+    -1, 0, 0.35, -1, 0, -0.35, 0, 0, 0,
+    0, 0, 0, 1, 0, -0.35, 1, 0, 0.35
+  ], 3));
+  birdGeo.computeVertexNormals();
+  const birdMat = new THREE.MeshBasicMaterial({ color: 0x1a2b33, side: THREE.DoubleSide });
+  const birds = new THREE.Group();
+  for (let i = 0; i < S.aves.cantidad; i++) {
+    const b = new THREE.Mesh(birdGeo, birdMat);
+    b.scale.setScalar(S.aves.tam);
+    birds.add(b);
+  }
+  world.add(birds);
+
+  // boat: fixed at the origin, the world turns around it
+  const boat = new THREE.Group();
+  scene.add(boat);
+  let running = true;
+  loadOneBoat(J.bote.modelo, p => onEvent({ type: 'load', p })).then(src => {
+    if (!running) return;
+    if (src) {
+      const b = prepareBoat(THREE, src, J.bote.eslora, J.bote.quillaY);
+      b.rotation.y = J.bote.giro;
+      boat.add(b);
+    } else {
+      const c = buildCanoe(THREE);
+      c.group.scale.setScalar(0.62);
+      boat.add(c.group);
+    }
+    onEvent({ type: 'ready' });
+  });
+
+  /* ---- state ---- */
+  let phase = 'idle'; // idle (instructions) | sailing | ended
+  let steer = 0, keyL = false, keyR = false, heel = 0;
+  let heading, progress, elapsed, errSum, offT, warnOn, driftSign, pz, seg, pulseT, latched;
+
+  const reset = () => {
+    heading = J.rumboObjetivo + (Math.random() < 0.5 ? -1 : 1) * 14;
+    progress = 0; elapsed = 0; errSum = 0; offT = 0; warnOn = false;
+    driftSign = Math.random() < 0.5 ? -1 : 1;
+    pz = 0; seg = 0; pulseT = 0;
+    latched = { aves: false, nube: false, isla: false };
+    island.visible = false; cloud.visible = false; birds.visible = false;
+    cloudMat.opacity = 0;
+    guideA.material.opacity = 1; guideB.material.opacity = 0;
+    placeOnDome(guideA, J.rumboObjetivo, J.estrellaGuia.altInicial);
+    placeOnDome(guideB, J.rumboObjetivo, J.estrellaGuia.altInicial * 0.55);
+  };
+  reset();
+
+  const end = result => {
+    phase = 'ended';
+    if (warnOn) { warnOn = false; onEvent({ type: 'warn', on: false }); }
+    onEvent({ type: 'end', result, timeS: elapsed, avgErrDeg: elapsed > 0 ? errSum / elapsed : 0 });
+  };
+
+  const onKeys = e => {
+    const k = e.key.toLowerCase();
+    if (k === 'a' || k === 'arrowleft') { keyL = e.type === 'keydown'; e.preventDefault(); }
+    if (k === 'd' || k === 'arrowright') { keyR = e.type === 'keydown'; e.preventDefault(); }
+  };
+  window.addEventListener('keydown', onKeys);
+  window.addEventListener('keyup', onKeys);
+  // losing focus mid-hold must not leave a key stuck
+  const onBlur = () => { keyL = false; keyR = false; };
+  window.addEventListener('blur', onBlur);
+  document.addEventListener('visibilitychange', onBlur);
+
+  function resize() {
+    const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.fov = w < 620 ? J.fovMovil : J.fov;
+    camera.updateProjectionMatrix();
+  }
+
+  let raf = 0, last = performance.now();
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    if (!running) return;
+    // dt clamp: a backgrounded tab must not teleport progress or insta-fail
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+    const input = phase === 'sailing' ? clamp((keyR ? 1 : 0) - (keyL ? 1 : 0) + steer, -1, 1) : 0;
+
+    if (phase === 'sailing') {
+      elapsed += dt;
+      heading += input * J.giro * dt;
+      heading += driftSign * (J.deriva.sesgo + (1 - J.deriva.sesgo) * Math.sin(Math.PI * 2 * elapsed / J.deriva.periodo)) * J.deriva.fuerza * dt;
+      heading = ((heading % 360) + 360) % 360;
+      let err = heading - J.rumboObjetivo;
+      if (err > 180) err -= 360;
+      if (err < -180) err += 360;
+      const aerr = Math.abs(err);
+      errSum += aerr * dt;
+      // off-heading advances less; fully sideways advances nothing
+      progress = Math.min(1, progress + J.velocidad * Math.max(0, Math.cos(err * D2R)) * dt / J.distancia);
+      // the ocean lives in the boat frame: forward is always scene -Z
+      pz -= J.velocidad * dt;
+
+      if (aerr > J.tolerancia) offT += dt;
+      else offT = Math.max(0, offT - dt * J.fallo.alivio);
+      const w = offT > J.aviso;
+      if (w !== warnOn) { warnOn = w; onEvent({ type: 'warn', on: w }); }
+
+      // star path: the guide climbs across each segment, then hands off to the next star
+      const segCount = J.camino.length;
+      const sNow = Math.min(segCount - 1, Math.floor(progress * segCount));
+      const segT = progress * segCount - sNow;
+      if (sNow !== seg) { seg = sNow; pulseT = 1.6; onEvent({ type: 'handoff', star: J.camino[seg] }); }
+      const alt = J.estrellaGuia.altInicial + (J.estrellaGuia.altTraspaso - J.estrellaGuia.altInicial) * segT;
+      placeOnDome(guideA, J.rumboObjetivo, alt);
+      guideB.material.opacity = seg < segCount - 1 ? clamp((segT - 0.55) / 0.45, 0, 1) * 0.7 : 0;
+      if (pulseT > 0) {
+        pulseT -= dt;
+        guideA.scale.setScalar(J.estrellaGuia.tam * (1 + Math.sin(t * J.estrellaGuia.pulso * Math.PI * 2) * 0.35));
+      } else guideA.scale.setScalar(J.estrellaGuia.tam);
+
+      // land signs unlock in order
+      if (!latched.aves && progress >= S.aves.progreso) { latched.aves = true; birds.visible = true; onEvent({ type: 'sign', sign: 'birds' }); }
+      if (!latched.nube && progress >= S.nube.progreso) { latched.nube = true; cloud.visible = true; onEvent({ type: 'sign', sign: 'cloud' }); }
+      if (!latched.isla && progress >= S.isla.progreso) { latched.isla = true; island.visible = true; onEvent({ type: 'sign', sign: 'island' }); }
+
+      if (offT >= J.fallo.segundos) end('lost');
+      else if (progress >= 1) end('won');
+
+      onTick({
+        progress,
+        headingDeg: heading,
+        houseName: GAME_HOUSES[Math.round(heading / 11.25) % 32],
+        offDeg: err
+      });
+    }
+
+    // island and cloud slide in along the target bearing as you close the distance
+    const rise = clamp((progress - S.isla.progreso) / (1 - S.isla.progreso), 0, 1);
+    const dIsl = J.niebla.lejos - (J.niebla.lejos - J.mar.radio * 0.5) * rise;
+    island.position.set(Math.sin(J.rumboObjetivo * D2R) * dIsl, -S.isla.alto * 0.6 + rise * S.isla.alto * 1.1, -Math.cos(J.rumboObjetivo * D2R) * dIsl);
+    if (cloud.visible) {
+      cloudMat.opacity = Math.min(S.nube.opacidad, cloudMat.opacity + dt * 0.3);
+      const dCl = Math.max(dIsl * 0.92, J.mar.radio * 0.6);
+      cloud.position.set(Math.sin(J.rumboObjetivo * D2R) * dCl, S.nube.altura + Math.sin(t * 0.4) * 0.3, -Math.cos(J.rumboObjetivo * D2R) * dCl);
+    }
+    if (birds.visible) {
+      birds.children.forEach((b, i) => {
+        const ph = t * S.aves.vel + i * 1.1;
+        const az = (J.rumboObjetivo + Math.sin(ph) * 30) * D2R;
+        const r = S.aves.radio + Math.cos(ph * 0.7 + i) * 3;
+        b.position.set(Math.sin(az) * r, S.aves.altura + Math.sin(ph * 2) * 0.5, -Math.cos(az) * r);
+        b.rotation.y = -az;
+        b.rotation.z = Math.sin(t * 10 + i) * 0.5;
+      });
+    }
+
+    // sway + heel on the fixed boat, world turned by the heading, swell phase by distance
+    const bal = J.balanceo;
+    heel += (input * J.bote.escora - heel) * Math.min(1, dt * 5);
+    boat.rotation.z = Math.sin(t * (Math.PI * 2 / bal.periodoZ)) * bal.rotZ + heel;
+    boat.rotation.x = Math.sin(t * (Math.PI * 2 / bal.periodoX) + 1) * bal.rotX;
+    boat.position.y = Math.sin(t * (Math.PI * 2 / bal.periodoY)) * bal.subida;
+    world.rotation.y = heading * D2R;
+    water.update(t, 0, pz);
+    renderer.render(scene, camera);
+  }
+
+  const ro = new ResizeObserver(resize);
+  ro.observe(canvas);
+  resize();
+  raf = requestAnimationFrame(frame);
+
+  return {
+    start() { if (phase === 'idle') { last = performance.now(); phase = 'sailing'; } },
+    retry() { reset(); last = performance.now(); phase = 'sailing'; },
+    setSteer(d) { steer = clamp(d, -1, 1); },
+    dispose() {
+      running = false;
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('keydown', onKeys);
+      window.removeEventListener('keyup', onKeys);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', onBlur);
+      starTex.dispose();
+      renderer.dispose();
+    }
+  };
 }
