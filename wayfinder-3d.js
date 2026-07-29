@@ -749,19 +749,26 @@ export function createHall(THREE, canvas, opts = {}) {
     touchLook.x = e.clientX; touchLook.y = e.clientY;
   };
   const onTouchUp = e => { if (touchLook && e.pointerId === touchLook.id) touchLook = null; };
-  // mobile: semi-transparent forward / back buttons (touch devices only)
-  let motion = 0, moveUI = null;
+  // mobile: semi-transparent d-pad (touch devices only) — forward/back + strafe
+  let motionF = 0, motionS = 0, moveUI = null;
+  canvas.style.webkitUserSelect = 'none';
+  canvas.style.userSelect = 'none';
   if (matchMedia('(pointer: coarse)').matches) {
     moveUI = document.createElement('div');
-    moveUI.style.cssText = 'position:absolute;left:16px;bottom:88px;display:flex;flex-direction:column;gap:10px;z-index:5';
-    [['▲', 1], ['▼', -1]].forEach(([label, dir]) => {
+    moveUI.style.cssText = 'position:absolute;left:14px;bottom:86px;display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,48px);gap:8px;z-index:5;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none';
+    moveUI.addEventListener('contextmenu', e => e.preventDefault());
+    const mk = (label, col, row, press, release) => {
       const b = document.createElement('button');
       b.textContent = label;
-      b.style.cssText = "width:56px;height:56px;border-radius:50%;border:1px solid rgba(224,163,46,.45);background:rgba(5,9,11,.35);color:rgba(224,163,46,.9);font-size:18px;line-height:1;touch-action:none;-webkit-tap-highlight-color:transparent";
-      b.addEventListener('pointerdown', e => { e.preventDefault(); motion = dir; });
-      ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => { motion = 0; }));
+      b.style.cssText = 'grid-column:' + col + ';grid-row:' + row + ";width:48px;height:48px;border-radius:50%;border:1px solid rgba(224,163,46,.3);background:rgba(5,9,11,.22);color:rgba(224,163,46,.75);font-size:16px;line-height:1;touch-action:none;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none";
+      b.addEventListener('pointerdown', e => { e.preventDefault(); press(); });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, release));
       moveUI.appendChild(b);
-    });
+    };
+    mk('▲', 2, 1, () => { motionF = 1; }, () => { motionF = 0; });
+    mk('◀', 1, 2, () => { motionS = -1; }, () => { motionS = 0; });
+    mk('▼', 2, 2, () => { motionF = -1; }, () => { motionF = 0; });
+    mk('▶', 3, 2, () => { motionS = 1; }, () => { motionS = 0; });
     (canvas.parentElement || document.body).appendChild(moveUI);
   }
   canvas.addEventListener('pointerdown', onTouchDown);
@@ -796,10 +803,10 @@ export function createHall(THREE, canvas, opts = {}) {
         cam.z += (-(fx / len) * sinY + (fz / len) * cosY) * W.velocidad;
         travel = null;
       }
-      if (motion) {
-        // touch buttons: walk along the view direction
-        cam.x += -Math.sin(cam.yaw) * W.velocidad * motion;
-        cam.z += -Math.cos(cam.yaw) * W.velocidad * motion;
+      if (motionF || motionS) {
+        // d-pad: forward/back along the view direction + lateral strafe
+        cam.x += (-Math.sin(cam.yaw) * motionF + Math.cos(cam.yaw) * motionS) * W.velocidad;
+        cam.z += (-Math.cos(cam.yaw) * motionF - Math.sin(cam.yaw) * motionS) * W.velocidad;
         travel = null;
       }
       if (travel) {
@@ -852,7 +859,7 @@ export function createHall(THREE, canvas, opts = {}) {
     travelTo(i) { const st = stations[i]; if (st) travel = { x: st.x, z: st.z + S.viaje.paradaZ }; },
     lock() { canvas.requestPointerLock && canvas.requestPointerLock(); },
     unlock() { document.pointerLockElement === canvas && document.exitPointerLock(); },
-    setFrozen(v) { frozen = !!v; },
+    setFrozen(v) { frozen = !!v; if (moveUI) moveUI.style.visibility = frozen ? 'hidden' : 'visible'; },
     dispose() {
       running = false;
       cancelAnimationFrame(raf); ro.disconnect();

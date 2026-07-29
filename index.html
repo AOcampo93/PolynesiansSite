@@ -44,7 +44,12 @@ canvas{display:block;touch-action:pan-y;}
   [data-om="page"]{padding-left:0!important;padding-top:54px!important;}
   [data-om="display"]{font-family:Archivo,sans-serif!important;font-stretch:100%!important;}
   [data-om="hideSm"]{display:none!important;}
-  [data-om="anatomySticky"]{height:100svh!important;}
+  [data-om-header]{padding:34px 20px 26px!important;}
+  [data-om="anatomyTrack"]{height:230vh!important;}
+  [data-om="anatomySticky"]{height:100svh!important;background:var(--hull);z-index:5;}
+  [data-om-table]{left:0!important;top:0!important;width:100%!important;height:100%!important;}
+  [data-om-moreinfo]{bottom:170px!important;}
+  [data-om-moreinfo] button{padding:18px 30px!important;min-height:56px!important;font-size:14px!important;}
   [data-om-hero]{left:-5%!important;right:-5%!important;top:-8%!important;bottom:-2%!important;}
   [data-om-heroframe]{height:clamp(360px,58vh,540px)!important;}
   [data-om="stage3d"]{min-height:52vh!important;}
@@ -93,7 +98,7 @@ canvas{display:block;touch-action:pan-y;}
 
 <div data-om="page" style="padding-left:86px;position:relative;z-index:2">
 
-  <header style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:clamp(36px,5vh,60px) clamp(20px,5vw,90px) clamp(18px,3vh,34px)">
+  <header data-om-header style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:clamp(36px,5vh,60px) clamp(20px,5vw,90px) clamp(18px,3vh,34px)">
     <div style="display:flex;align-items:baseline;gap:14px">
       <span data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--foam)">wayfinder</span>
       <span style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">portfolio · three.js · webxr</span>
@@ -194,8 +199,9 @@ canvas{display:block;touch-action:pan-y;}
         <span ref="{{ explodePct }}" style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--olena)">0%</span>
       </div>
     </div>
+  </section>
 
-    <div data-om="onlySm" style="padding:0 clamp(20px,5vw,90px) clamp(50px,7vh,80px);display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule);margin-top:24px">
+  <div data-om="onlySm" style="padding:26px clamp(20px,5vw,90px) clamp(50px,7vh,80px);display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule)">
       <div style="background:var(--hull);padding:16px 14px">
         <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">length</div>
         <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">18.9 m</div>
@@ -213,7 +219,7 @@ canvas{display:block;touch-action:pan-y;}
         <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">12 t</div>
       </div>
     </div>
-  </section>
+
 
   <!-- ══ 3 · STAR NAVIGATION ══ -->
   <section id="estrellas" data-screen-label="03 Star compass" style="padding:clamp(70px,10vh,140px) clamp(20px,5vw,90px);max-width:1440px;margin:0 auto;border-top:1px solid var(--rule)">
@@ -281,7 +287,7 @@ canvas{display:block;touch-action:pan-y;}
     <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,56px);align-items:flex-start">
       <div style="flex:1 1 460px;min-width:300px">
         <div style="position:relative;border:1px solid var(--rule);background:var(--depth);aspect-ratio:16/11;min-height:280px">
-          <canvas ref="{{ tableCanvas }}" style="position:absolute;left:-6%;top:-9%;width:112%;height:112%"></canvas>
+          <canvas ref="{{ tableCanvas }}" data-om-table style="position:absolute;left:-6%;top:-9%;width:112%;height:112%"></canvas>
           <span style="position:absolute;left:12px;top:12px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">scale 1:20 · tabletop</span>
           <button onClick="{{ hot0 }}" style="{{ hotA }}" title="length">{{ hotLabel0 }}</button>
           <button onClick="{{ hot1 }}" style="{{ hotB }}" title="beam">{{ hotLabel1 }}</button>
@@ -444,7 +450,7 @@ canvas{display:block;touch-action:pan-y;}
 
 <!-- ══ IMMERSIVE HALL · fullscreen ══ -->
 <sc-if value="{{ hallOpen }}" hint-placeholder-val="{{ false }}">
-  <div style="position:fixed;inset:0;z-index:200;background:#05090b">
+  <div style="position:fixed;inset:0;z-index:200;background:#05090b;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none">
     <canvas ref="{{ hallCanvas }}" style="width:100%;height:100%;cursor:crosshair"></canvas>
 
     <button onClick="{{ closeHall }}" style="position:absolute;left:16px;top:16px;border:1px solid rgba(224,163,46,.5);background:rgba(5,9,11,.7);color:#E0A32E;padding:11px 14px;min-height:44px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px" style-hover="background:#E0A32E;color:#05090b">← exit · esc</button>
@@ -458,7 +464,9 @@ canvas{display:block;touch-action:pan-y;}
     </div>
 
     <sc-if value="{{ moreInfo }}" hint-placeholder-val="{{ false }}">
-      <button onClick="{{ openInfo }}" style="position:absolute;left:50%;bottom:84px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;border:1px solid #E0A32E;background:rgba(5,9,11,.82);color:#E0A32E;padding:14px 22px;min-height:48px;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;animation:wf-rise 220ms cubic-bezier(.32,.72,0,1) both" style-hover="background:#E0A32E;color:#05090b">ⓘ more info · {{ readyName }}</button>
+      <div data-om-moreinfo style="position:absolute;left:0;right:0;bottom:84px;display:flex;justify-content:center;pointer-events:none">
+        <button onClick="{{ openInfo }}" style="pointer-events:auto;display:flex;align-items:center;gap:10px;border:1px solid #E0A32E;background:rgba(5,9,11,.82);color:#E0A32E;padding:15px 26px;min-height:50px;font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;animation:wf-rise 220ms cubic-bezier(.32,.72,0,1) both" style-hover="background:#E0A32E;color:#05090b">ⓘ more info · {{ readyName }}</button>
+      </div>
     </sc-if>
 
     <sc-if value="{{ cartelaOpen }}" hint-placeholder-val="{{ false }}">
@@ -574,24 +582,24 @@ class Component extends DCLogic {
     if (this.props.accent) document.documentElement.style.setProperty('--olena', this.props.accent);
 
     this.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    this.onScroll = () => { if (!this.tick) { this.tick = requestAnimationFrame(() => { this.tick = 0; this.scroll(); }); } };
+    // rAF loop instead of scroll events: iOS momentum scrolling throttles them
+    const loop = () => { this.scrollRaf = requestAnimationFrame(loop); this.scroll(); };
+    loop();
     this.onResize = () => this.setState({ small: innerWidth < 1024 });
     this.onKey = e => {
       if (e.key !== 'Escape') return;
       if (this.state.cartela != null) this.closeCartela();
       else if (this.state.hallOpen) this.closeHall();
     };
-    addEventListener('scroll', this.onScroll, { passive: true });
     addEventListener('resize', this.onResize);
     addEventListener('keydown', this.onKey);
-    this.scroll();
 
     this.setState({ loading: true, pct: 0, resource: 'models · waʻa' });
     this.boot();
   }
 
   componentWillUnmount() {
-    removeEventListener('scroll', this.onScroll);
+    cancelAnimationFrame(this.scrollRaf);
     removeEventListener('resize', this.onResize);
     removeEventListener('keydown', this.onKey);
     this.scenes && Object.values(this.scenes).forEach(s => s && s.dispose && s.dispose());
@@ -601,7 +609,7 @@ class Component extends DCLogic {
     for (let i = 0; i < 120 && !window.THREE; i++) await new Promise(r => setTimeout(r, 80));
     if (!window.THREE) { this.setState({ loading: false }); return; }
     this.THREE = window.THREE;
-    this.lib = await import('./wayfinder-3d.js');
+    this.lib = await import('./wayfinder-3d.js?v=3');
     this.scenes = {};
     // real loading: the loader closes when the three models are downloaded and decoded
     this.lib.preloadBoats(pr => {
@@ -874,7 +882,8 @@ class Component extends DCLogic {
   startAR = async () => {
     // iPhone / iPad: no iOS browser ships WebXR — Apple's native path is AR Quick Look (USDZ)
     const probe = document.createElement('a');
-    if (probe.relList && probe.relList.supports && probe.relList.supports('ar')) {
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (iOS || (probe.relList && probe.relList.supports && probe.relList.supports('ar'))) {
       probe.rel = 'ar';
       probe.appendChild(document.createElement('img'));
       probe.href = './models/boat.usdz';
