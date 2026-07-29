@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>wayfinder · waʻa kaulua</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..700&family=Newsreader:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
+<style>
+:root{
+  --hull:#DFE6E2; --depth:#EFF2EE; --foam:#0F252D; --olena:#B87A15;
+  --noni:#7A2A25; --sennit:#8A7C63; --rule:rgba(138,124,99,.42);
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+:root[data-mode="night"]{
+  --hull:#0B1A21; --depth:#12303A; --foam:#F2E9D8; --olena:#E0A32E;
+  --noni:#8C2F2A; --sennit:#6E6047; --rule:rgba(110,96,71,.55);
+}
+html{scroll-behavior:smooth;}
+body{margin:0;background:var(--hull);color:var(--foam);-webkit-font-smoothing:antialiased;
+  font-family:Newsreader,Georgia,serif;transition:background 600ms var(--ease),color 600ms var(--ease);overflow-x:hidden;}
+*{box-sizing:border-box;}
+a{color:var(--olena);text-decoration:none;border-bottom:1px solid var(--rule);}
+a:hover{color:var(--foam);border-bottom-color:var(--olena);}
+button{font-family:'IBM Plex Mono',monospace;cursor:pointer;}
+:focus-visible{outline:2px solid var(--olena);outline-offset:2px;}
+canvas{display:block;touch-action:pan-y;}
+@keyframes wf-pulse{0%,100%{opacity:.35}50%{opacity:.9}}
+@keyframes wf-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (max-width:1023px){
+  [data-om="rail"]{width:100%!important;height:54px!important;flex-direction:row!important;align-items:center!important;
+    border-right:none!important;border-bottom:1px solid var(--rule)!important;padding:0 14px!important;gap:14px!important;}
+  [data-om="railmid"]{flex-direction:row!important;gap:14px!important;flex:1!important;}
+  [data-om="vert"]{writing-mode:horizontal-tb!important;transform:none!important;}
+  [data-om="page"]{padding-left:0!important;padding-top:54px!important;}
+  [data-om="display"]{font-family:Archivo,sans-serif!important;font-stretch:100%!important;}
+  [data-om="hideSm"]{display:none!important;}
+  [data-om="anatomyTrack"]{height:auto!important;}
+  [data-om="anatomySticky"]{position:static!important;height:auto!important;}
+  [data-om="stage3d"]{min-height:52vh!important;}
+  [data-om="cartelaModal"]{left:10px!important;right:10px!important;bottom:10px!important;top:auto!important;width:auto!important;max-height:calc(100% - 90px)!important;}
+}
+@media (min-width:1024px){ [data-om="onlySm"]{display:none!important;} }
+@media (prefers-reduced-motion:reduce){ html{scroll-behavior:auto;} *{animation-duration:.01ms!important;} }
+</style>
+</helmet>
+
+<div style="position:fixed;inset:0;z-index:60;pointer-events:none;opacity:.05;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E&quot;)"></div>
+
+<div data-om="rail" style="position:fixed;left:0;top:0;bottom:0;width:86px;z-index:70;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:20px 0;background:var(--hull);border-right:1px solid var(--rule);transition:background 600ms var(--ease)">
+  <a href="#hero" style="border:none;font:600 15px/1 Archivo,sans-serif;color:var(--foam);letter-spacing:-.01em">◐</a>
+
+  <div data-om="railmid" style="display:flex;flex-direction:column;align-items:center;gap:22px">
+    <div style="position:relative;width:64px;height:64px;flex:none">
+      <svg viewBox="0 0 64 64" width="64" height="64" aria-hidden="true">
+        <g ref="{{ ringRef }}" style="transform-origin:32px 32px;transition:transform 120ms linear">
+          <circle cx="32" cy="32" r="27" fill="none" stroke="var(--sennit)" stroke-width="4" stroke-dasharray="1 4.3" opacity=".55"></circle>
+        </g>
+        <circle cx="32" cy="32" r="23" fill="none" stroke="var(--rule)" stroke-width="1"></circle>
+        <circle ref="{{ arcRef }}" cx="32" cy="32" r="23" fill="none" stroke="var(--olena)" stroke-width="1.5"
+          stroke-dasharray="144.5" stroke-dashoffset="144.5" transform="rotate(-90 32 32)" stroke-linecap="butt"></circle>
+        <path d="M32 3 l3.4 6 h-6.8z" fill="var(--olena)"></path>
+      </svg>
+      <button onClick="{{ toggleMode }}" title="day / night"
+        style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:44px;height:44px;border-radius:50%;border:1px solid var(--rule);background:var(--depth);color:var(--foam);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all 300ms var(--ease)"
+        style-hover="border-color:var(--olena);color:var(--olena)">{{ modeGlyph }}</button>
+    </div>
+
+    <div data-om="vert" style="writing-mode:vertical-rl;transform:rotate(180deg);font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena);white-space:nowrap">
+      <span ref="{{ rumboRef }}">hikina · 090°</span>
+    </div>
+
+    <div data-om="hideSm" style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--sennit)">
+      <span ref="{{ pctRef }}">00</span>%
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+    <span data-om="hideSm" style="width:1px;height:34px;background:var(--rule)"></span>
+    <span data-om="hideSm" style="font:500 9px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--sennit);writing-mode:vertical-rl">2026</span>
+  </div>
+</div>
+
+<div data-om="page" style="padding-left:86px;position:relative;z-index:2">
+
+  <header style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:26px clamp(20px,5vw,90px) 0">
+    <div style="display:flex;align-items:baseline;gap:14px">
+      <span data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--foam)">wayfinder</span>
+      <span style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">portfolio · three.js · webxr</span>
+    </div>
+    <nav style="display:flex;gap:18px;align-items:baseline">
+      <a href="#bitacora" style="font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;border-bottom-color:transparent" style-hover="border-bottom-color:var(--olena)">contact</a>
+      <a href="#bitacora" style="font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;border-bottom-color:transparent" style-hover="border-bottom-color:var(--olena)">github</a>
+    </nav>
+  </header>
+
+  <!-- ══ 1 · HERO ══ -->
+  <section id="hero" data-screen-label="01 Hero" style="padding:clamp(28px,4vh,56px) clamp(20px,5vw,90px) clamp(60px,8vh,110px);max-width:1440px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(14px,2vh,26px)">
+      <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+      <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">hikina · 090°</span>
+      <span style="flex:1;height:1px;background:var(--rule)"></span>
+      <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">where the stars rise</span>
+    </div>
+
+    <div style="position:relative;height:clamp(430px,68vh,720px)">
+      <div style="position:absolute;left:0;right:0;top:4%;bottom:16%;border:1px solid var(--rule)"></div>
+      <div style="position:absolute;left:0;right:0;top:calc(4% - 1px);height:1px;background:var(--olena);opacity:.35"></div>
+      <span data-om="hideSm" style="position:absolute;right:10px;top:4%;transform:translateY(-140%);font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--sennit)">horizon line</span>
+
+      <div data-om="stage3d" style="position:absolute;left:-13%;right:-15%;top:-17%;bottom:-7%;z-index:2">
+        <canvas ref="{{ heroCanvas }}" style="width:100%;height:100%;cursor:grab"></canvas>
+      </div>
+
+      <div style="position:absolute;left:0;bottom:0;z-index:3;max-width:620px;pointer-events:none">
+        <h1 data-om="display" style="margin:0;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:700;font-size:clamp(40px,7.4vw,76px);line-height:.92;letter-spacing:-.025em;color:var(--foam)">waʻa kaulua</h1>
+        <div style="width:min(420px,70%);height:1px;background:var(--rule);margin:18px 0 14px"></div>
+        <p style="margin:0;font:400 clamp(15px,1.5vw,18px)/1.55 Newsreader,serif;color:var(--foam);max-width:44ch;text-wrap:pretty">3,000 km of open ocean. No instruments, no charts, no metal.</p>
+        <p style="margin:6px 0 0;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">guided by stars, swells and birds alone.</p>
+      </div>
+    </div>
+
+    <div style="position:relative;z-index:3;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:clamp(56px,9vh,110px)">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;border:1px solid var(--rule);overflow:hidden">
+          <button onClick="{{ viewAll }}" style="{{ btnAll }}">full view</button>
+          <button onClick="{{ viewBow }}" style="{{ btnBow }}">bow</button>
+          <button onClick="{{ viewSail }}" style="{{ btnSail }}">sail</button>
+          <button onClick="{{ viewHull }}" style="{{ btnHull }}">hull</button>
+        </div>
+        <span style="{{ pieceStyle }}">{{ pieceLabel }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">
+        <span>drag to rotate</span>
+        <span style="width:26px;height:1px;background:var(--rule)"></span>
+        <span>scroll ↓</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 2 · ANATOMY ══ -->
+  <section id="anatomia" data-screen-label="02 Anatomy" data-om="anatomyTrack" style="position:relative;height:300vh;border-top:1px solid var(--rule)">
+    <div data-om="anatomySticky" style="position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:clamp(40px,7vh,90px) clamp(20px,5vw,90px) clamp(30px,5vh,60px);max-width:1440px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(10px,2vh,22px)">
+        <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+        <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">ʻākau · 000°</span>
+        <span style="flex:1;height:1px;background:var(--rule)"></span>
+        <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">exploded view · scroll-driven</span>
+      </div>
+      <h2 data-om="display" style="margin:0 0 4px;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(26px,3.9vw,46px);line-height:1;letter-spacing:-.02em;color:var(--foam)">anatomy of a double-hulled canoe</h2>
+      <p style="margin:0;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">waʻa kaulua · the twin-hulled voyaging canoe</p>
+
+      <div data-om="stage3d" style="position:relative;flex:1;min-height:320px;margin-top:14px">
+        <canvas ref="{{ anatomyCanvas }}" style="width:100%;height:100%"></canvas>
+
+        <div data-om="hideSm" style="position:absolute;left:0;top:12%;max-width:230px">
+          <div style="display:flex;align-items:center;gap:0"><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">length</span><span style="flex:1;height:1px;background:var(--rule);margin-left:10px"></span></div>
+          <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:26px;letter-spacing:-.02em;margin-top:6px">18.9 m</div>
+          <p style="margin:4px 0 0;font:400 14px/1.45 Newsreader,serif;color:var(--sennit)">bow to stern, not counting the manu ihu figurehead.</p>
+        </div>
+
+        <div data-om="hideSm" style="position:absolute;right:0;top:8%;max-width:250px;text-align:right">
+          <div style="display:flex;align-items:center;gap:0"><span style="flex:1;height:1px;background:var(--rule);margin-right:10px"></span><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">crab-claw sail</span></div>
+          <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:26px;letter-spacing:-.02em;margin-top:6px">peʻa</div>
+          <p style="margin:4px 0 0;font:400 14px/1.45 Newsreader,serif;color:var(--sennit)">hand-woven lauhala matting, sewn into panels.</p>
+        </div>
+
+        <div data-om="hideSm" style="position:absolute;left:0;bottom:8%;max-width:250px">
+          <div style="display:flex;align-items:center;gap:0"><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">lashings</span><span style="flex:1;height:1px;background:var(--rule);margin-left:10px"></span></div>
+          <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:26px;letter-spacing:-.02em;margin-top:6px">ʻaha</div>
+          <p style="margin:4px 0 0;font:400 14px/1.45 Newsreader,serif;color:var(--sennit)">braided coconut fibre. Not a single nail in the entire vessel.</p>
+        </div>
+
+        <div data-om="hideSm" style="position:absolute;right:0;bottom:12%;max-width:220px;text-align:right">
+          <div style="display:flex;align-items:center;gap:0"><span style="flex:1;height:1px;background:var(--rule);margin-right:10px"></span><span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">displacement</span></div>
+          <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:26px;letter-spacing:-.02em;margin-top:6px">12 t</div>
+          <p style="margin:4px 0 0;font:400 14px/1.45 Newsreader,serif;color:var(--sennit)">full load for a 30-day crossing.</p>
+        </div>
+      </div>
+
+      <div data-om="hideSm" style="display:flex;align-items:center;gap:12px;margin-top:10px">
+        <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">explode</span>
+        <span style="flex:1;height:1px;background:var(--rule);position:relative"><span ref="{{ explodeBar }}" style="position:absolute;left:0;top:0;height:1px;width:0%;background:var(--olena)"></span></span>
+        <span ref="{{ explodePct }}" style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--olena)">0%</span>
+      </div>
+    </div>
+
+    <div data-om="onlySm" style="padding:0 clamp(20px,5vw,90px) clamp(50px,7vh,80px);display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule);margin-top:24px">
+      <div style="background:var(--hull);padding:16px 0">
+        <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">length</div>
+        <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">18.9 m</div>
+      </div>
+      <div style="background:var(--hull);padding:16px 0">
+        <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">sail · peʻa</div>
+        <div style="font:400 15px/1.5 Newsreader,serif;margin-top:4px;color:var(--sennit)">hand-woven lauhala matting</div>
+      </div>
+      <div style="background:var(--hull);padding:16px 0">
+        <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">lashings · ʻaha</div>
+        <div style="font:400 15px/1.5 Newsreader,serif;margin-top:4px;color:var(--sennit)">braided coconut fibre, not a single nail</div>
+      </div>
+      <div style="background:var(--hull);padding:16px 0">
+        <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">displacement</div>
+        <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">12 t</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 3 · STAR NAVIGATION ══ -->
+  <section id="estrellas" data-screen-label="03 Star compass" style="padding:clamp(70px,10vh,140px) clamp(20px,5vw,90px);max-width:1440px;margin:0 auto;border-top:1px solid var(--rule)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(24px,4vh,44px)">
+      <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+      <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">koʻolau · 045°</span>
+      <span style="flex:1;height:1px;background:var(--rule)"></span>
+      <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">32 houses of the horizon</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,64px);align-items:flex-start">
+      <div style="flex:1 1 320px;min-width:280px">
+        <h2 data-om="display" style="margin:0 0 6px;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(26px,3.9vw,46px);line-height:1;letter-spacing:-.02em">navigating without instruments</h2>
+        <p style="margin:0 0 22px;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">the navigator’s star compass</p>
+
+        <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid var(--noni);padding:5px 9px;margin-bottom:16px">
+          <span style="width:5px;height:5px;background:var(--noni)"></span>
+          <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--noni)">placeholder · copy pending</span>
+        </div>
+
+        <p style="margin:0 0 16px;font:400 clamp(16px,1.5vw,18px)/1.62 Newsreader,serif;max-width:58ch;text-wrap:pretty;color:var(--foam)">Placeholder for the first paragraph on wayfinding: what is observed, in what order, and why the horizon is divided into houses rather than degrees. Three or four sentences, museum-label tone.</p>
+        <p style="margin:0 0 16px;font:400 clamp(16px,1.5vw,18px)/1.62 Newsreader,serif;max-width:58ch;text-wrap:pretty;color:var(--sennit)">Placeholder for the second paragraph: the swell as a memory of the winds, birds as the radius of land, the body’s position inside the canoe as an instrument.</p>
+        <p style="margin:0;font:400 clamp(16px,1.5vw,18px)/1.62 Newsreader,serif;max-width:58ch;text-wrap:pretty;color:var(--sennit)">Placeholder for the third paragraph: the oral transmission of this knowledge and its contemporary revival.</p>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-top:26px">
+          <span style="width:28px;height:1px;background:var(--rule)"></span>
+          <span style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--sennit)">names to be verified · Polynesian Voyaging Society · Bishop Museum</span>
+        </div>
+      </div>
+
+      <div style="flex:1 1 380px;min-width:290px;display:flex;flex-direction:column;align-items:center;gap:18px">
+        <div style="width:100%;max-width:440px">{{ rose }}</div>
+        <div style="display:flex;align-items:center;gap:12px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">
+          <span>← → walk the houses</span><span style="width:20px;height:1px;background:var(--rule)"></span><span>enter selects</span>
+        </div>
+      </div>
+
+      <div style="flex:0 1 260px;min-width:220px;border-left:1px solid var(--rule);padding-left:22px">
+        <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">selected house</div>
+        <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(24px,2.6vw,32px);line-height:1.05;letter-spacing:-.02em;margin:10px 0 4px;color:var(--foam)">{{ houseName }}</div>
+        <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--olena)">{{ houseDeg }}</div>
+        <div style="height:1px;background:var(--rule);margin:16px 0"></div>
+        <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">{{ houseKeyLabel }}</div>
+        <div style="font:500 13px/1.4 'IBM Plex Mono',monospace;letter-spacing:.04em;margin-top:6px;color:var(--foam)">{{ houseKeyValue }}</div>
+        <p style="margin:16px 0 0;font:400 15px/1.55 Newsreader,serif;color:var(--sennit)">{{ houseNote }}</p>
+        <sc-if value="{{ isDay }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:22px;border:1px solid var(--rule);background:var(--depth);padding:14px">
+            <p style="margin:0 0 10px;font:400 15px/1.5 Newsreader,serif;color:var(--foam)">The star compass is read at night. By day the horizon is measured by sun and swell.</p>
+            <button onClick="{{ goNight }}" style="border:1px solid var(--olena);background:transparent;color:var(--olena);padding:8px 12px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px" style-hover="background:var(--olena);color:var(--hull)">switch to night</button>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 4 · AUGMENTED REALITY ══ -->
+  <section id="ar" data-screen-label="04 Augmented reality" style="padding:clamp(70px,10vh,140px) clamp(20px,5vw,90px);max-width:1440px;margin:0 auto;border-top:1px solid var(--rule)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(24px,4vh,44px)">
+      <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+      <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">kona · 225°</span>
+      <span style="flex:1;height:1px;background:var(--rule)"></span>
+      <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">webxr · mobile wins here</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,56px);align-items:flex-start">
+      <div style="flex:1 1 460px;min-width:300px">
+        <div style="position:relative;border:1px solid var(--rule);background:var(--depth);aspect-ratio:16/11;min-height:280px">
+          <canvas ref="{{ tableCanvas }}" style="position:absolute;left:-6%;top:-9%;width:112%;height:112%"></canvas>
+          <span style="position:absolute;left:12px;top:12px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">scale 1:20 · tabletop</span>
+          <button onClick="{{ hot0 }}" style="{{ hotA }}" title="length">{{ hotLabel0 }}</button>
+          <button onClick="{{ hot1 }}" style="{{ hotB }}" title="beam">{{ hotLabel1 }}</button>
+          <button onClick="{{ hot2 }}" style="{{ hotC }}" title="mast height">{{ hotLabel2 }}</button>
+          <button onClick="{{ hot3 }}" style="{{ hotD }}" title="draft">{{ hotLabel3 }}</button>
+        </div>
+
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px">
+          <button onClick="{{ launchAR }}" style="flex:1 1 190px;border:1px solid var(--olena);background:var(--olena);color:var(--hull);padding:14px 18px;min-height:46px;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px;transition:all 300ms var(--ease)" style-hover="background:transparent;color:var(--olena)">view in your space</button>
+          <button onClick="{{ toggleCompare }}" style="{{ compareBtn }}">compare size</button>
+        </div>
+
+        <sc-if value="{{ arNoteOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:8px;border:1px solid var(--noni);padding:8px 10px;margin-top:12px">
+            <span style="width:5px;height:5px;background:var(--noni);flex:none"></span>
+            <span style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--noni)">{{ arNote }}</span>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ compare }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid var(--rule);padding:18px;margin-top:14px">
+            <div style="display:flex;align-items:flex-end;gap:14px;height:120px">
+              <div style="flex:0 0 26px;height:11%;border:1px solid var(--noni);background:transparent"></div>
+              <div style="flex:1;height:100%;border:1px solid var(--olena);position:relative">
+                <span style="position:absolute;left:8px;top:8px;font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--olena)">18.9 m</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:14px;margin-top:8px;font:500 10px/1.4 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">
+              <span style="flex:0 0 26px">1.75 m</span><span style="flex:1">overall length · 10.8× the height of a person</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="flex:1 1 300px;min-width:260px">
+        <h2 data-om="display" style="margin:0 0 6px;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(26px,3.9vw,46px);line-height:1;letter-spacing:-.02em">put it on your desk</h2>
+        <p style="margin:0 0 24px;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">augmented reality · scale 1:20 or 1:1</p>
+
+        <div style="display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <div style="background:var(--hull);display:flex;justify-content:space-between;gap:14px;padding:12px 0">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">true size</span>
+            <span style="font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--foam)">18.9 m</span>
+          </div>
+          <div style="background:var(--hull);display:flex;justify-content:space-between;gap:14px;padding:12px 0">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">on a table at 1:20</span>
+            <span style="font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--foam)">95 cm</span>
+          </div>
+          <div style="background:var(--hull);display:flex;justify-content:space-between;gap:14px;padding:12px 0">
+            <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">mesh</span>
+            <span style="font:500 13px/1 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--foam)">glb + draco</span>
+          </div>
+        </div>
+
+        <div style="border:1px solid var(--rule);background:var(--depth);padding:18px;margin-top:22px;display:flex;gap:16px;align-items:flex-start">
+          <div style="flex:0 0 76px;height:76px;border:1px solid var(--rule);display:grid;grid-template-columns:repeat(5,1fr);grid-template-rows:repeat(5,1fr);gap:2px;padding:6px">
+            <span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span><span style="background:var(--foam)"></span><span></span>
+            <span></span><span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span><span style="background:var(--foam)"></span>
+            <span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span>
+            <span style="background:var(--foam)"></span><span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span><span></span>
+            <span></span><span style="background:var(--foam)"></span><span style="background:var(--foam)"></span><span></span><span style="background:var(--foam)"></span>
+          </div>
+          <div>
+            <div style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">ⓘ ar on mobile</div>
+            <p style="margin:8px 0 0;font:400 15px/1.5 Newsreader,serif;color:var(--foam)">Augmented reality needs a phone. Scan the code and the canoe appears wherever you are.</p>
+            <p style="margin:6px 0 0;font:400 11px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">placeholder QR · to be generated</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 5 · IMMERSIVE HALL ══ -->
+  <section id="sala" data-screen-label="05 Immersive hall" style="padding:clamp(70px,10vh,140px) clamp(20px,5vw,90px);border-top:1px solid var(--rule);background:var(--depth);transition:background 600ms var(--ease)">
+    <div style="max-width:1440px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(24px,4vh,44px)">
+        <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+        <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">hema · 180°</span>
+        <span style="flex:1;height:1px;background:var(--rule)"></span>
+        <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">leaves the document flow</span>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,64px);align-items:flex-end">
+        <div style="flex:1 1 380px;min-width:290px">
+          <h2 data-om="display" style="margin:0 0 6px;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(26px,3.9vw,46px);line-height:1;letter-spacing:-.02em">hall of vessels</h2>
+          <p style="margin:0 0 20px;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">hall of vessels · first person</p>
+          <p style="margin:0 0 26px;font:400 clamp(16px,1.5vw,18px)/1.6 Newsreader,serif;max-width:52ch;color:var(--foam);text-wrap:pretty">Four vessels, one hall. Walk with WASD, look with the mouse. Stand inside a circle to read.</p>
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+            <button onClick="{{ openHall }}" style="border:1px solid var(--olena);background:var(--olena);color:var(--hull);padding:16px 26px;min-height:48px;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;transition:all 300ms var(--ease)" style-hover="background:transparent;color:var(--olena)">enter</button>
+            <span style="font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">wasd to walk · mobile: tap the next circle</span>
+          </div>
+        </div>
+
+        <div style="flex:1 1 420px;min-width:290px;display:grid;gap:1px;background:var(--rule);border:1px solid var(--rule)">
+          <div style="background:var(--depth);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <span style="font:500 13px/1.2 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--foam)">Hōkūleʻa</span>
+            <span style="font:500 10px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--sennit)">hawaiʻi · 19.0 m</span>
+          </div>
+          <div style="background:var(--depth);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <span style="font:500 13px/1.2 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--foam)">Tipairua</span>
+            <span style="font:500 10px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--sennit)">tahiti · data pending</span>
+          </div>
+          <div style="background:var(--depth);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <span style="font:500 13px/1.2 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--foam)">Te Aurere</span>
+            <span style="font:500 10px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--sennit)">aotearoa · data pending</span>
+          </div>
+          <div style="background:var(--depth);padding:14px 16px;display:flex;justify-content:space-between;gap:12px;align-items:baseline">
+            <span style="font:500 13px/1.2 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--foam)">Te Puke</span>
+            <span style="font:500 10px/1.2 'IBM Plex Mono',monospace;letter-spacing:.12em;color:var(--sennit)">taumako · data pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ 6 · BUILD LOG ══ -->
+  <section id="bitacora" data-screen-label="06 Build log" style="padding:clamp(70px,10vh,140px) clamp(20px,5vw,90px) clamp(50px,7vh,90px);max-width:1440px;margin:0 auto;border-top:1px solid var(--rule)">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:clamp(24px,4vh,44px)">
+      <span style="width:7px;height:7px;border:1px solid var(--olena);border-radius:50%"></span>
+      <span style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--olena)">komohana · 270°</span>
+      <span style="flex:1;height:1px;background:var(--rule)"></span>
+      <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">where the stars set</span>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:clamp(28px,4vw,64px);align-items:flex-start">
+      <div style="flex:1 1 420px;min-width:290px">
+        <h2 data-om="display" style="margin:0 0 6px;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(26px,3.9vw,46px);line-height:1;letter-spacing:-.02em">how it was built</h2>
+        <p style="margin:0 0 22px;font:400 12px/1.5 'IBM Plex Mono',monospace;letter-spacing:.04em;color:var(--sennit)">build log · decisions and tools</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px">
+          <span style="border:1px solid var(--rule);padding:6px 10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">three.js</span>
+          <span style="border:1px solid var(--rule);padding:6px 10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">webxr</span>
+          <span style="border:1px solid var(--rule);padding:6px 10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">glb + draco</span>
+          <span style="border:1px solid var(--rule);padding:6px 10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">js</span>
+          <span style="border:1px solid var(--rule);padding:6px 10px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--sennit)">css</span>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:8px;border:1px solid var(--noni);padding:5px 9px;margin-bottom:16px">
+          <span style="width:5px;height:5px;background:var(--noni)"></span>
+          <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--noni)">placeholder · copy pending</span>
+        </div>
+        <p style="margin:0 0 16px;font:400 clamp(16px,1.5vw,18px)/1.62 Newsreader,serif;max-width:58ch;text-wrap:pretty">Placeholder for the first paragraph: which decisions were matters of judgement — art direction, hierarchy, animation budget — and why they were made that way.</p>
+        <p style="margin:0;font:400 clamp(16px,1.5vw,18px)/1.62 Newsreader,serif;max-width:58ch;text-wrap:pretty;color:var(--sennit)">Placeholder for the second paragraph: where AI accelerated execution and what was deliberately left out.</p>
+      </div>
+
+      <div style="flex:0 1 320px;min-width:260px">
+        <button onClick="{{ mailto }}" style="width:100%;border:1px solid var(--olena);background:transparent;color:var(--olena);padding:18px;min-height:52px;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;transition:all 300ms var(--ease)" style-hover="background:var(--olena);color:var(--hull)">let’s talk</button>
+        <div style="display:grid;gap:1px;background:var(--rule);margin-top:20px;border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+          <a href="#bitacora" style="background:var(--hull);border:none;padding:13px 0;display:flex;justify-content:space-between;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--foam)"><span>email</span><span style="color:var(--sennit)">→</span></a>
+          <a href="#bitacora" style="background:var(--hull);border:none;padding:13px 0;display:flex;justify-content:space-between;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--foam)"><span>github</span><span style="color:var(--sennit)">→</span></a>
+          <a href="#bitacora" style="background:var(--hull);border:none;padding:13px 0;display:flex;justify-content:space-between;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--foam)"><span>linkedin</span><span style="color:var(--sennit)">→</span></a>
+        </div>
+        <button onClick="{{ replayLoader }}" style="margin-top:20px;background:transparent;border:none;border-bottom:1px solid var(--rule);padding:0 0 3px;color:var(--sennit);font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase" style-hover="color:var(--olena);border-bottom-color:var(--olena)">replay loading screen</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-top:clamp(40px,6vh,80px);padding-top:18px;border-top:1px solid var(--rule);font:500 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">
+      <span>wayfinder · portfolio</span>
+      <span>19°42′N 155°03′W</span>
+    </div>
+  </section>
+</div>
+
+<!-- ══ IMMERSIVE HALL · fullscreen ══ -->
+<sc-if value="{{ hallOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:fixed;inset:0;z-index:200;background:#05090b">
+    <canvas ref="{{ hallCanvas }}" style="width:100%;height:100%;cursor:crosshair"></canvas>
+
+    <button onClick="{{ closeHall }}" style="position:absolute;left:16px;top:16px;border:1px solid rgba(224,163,46,.5);background:rgba(5,9,11,.7);color:#E0A32E;padding:11px 14px;min-height:44px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px" style-hover="background:#E0A32E;color:#05090b">← exit · esc</button>
+
+    <div style="position:absolute;right:16px;top:22px;display:flex;gap:9px">{{ hallDots }}</div>
+
+    <div style="position:absolute;left:0;right:0;bottom:20px;display:flex;justify-content:center;gap:14px;align-items:center;flex-wrap:wrap;padding:0 16px">
+      <span data-om="hideSm" style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:rgba(242,233,216,.55)">wasd to walk · mouse to look · click to capture the cursor · stand in a circle for info</span>
+      <span data-om="onlySm" style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:rgba(242,233,216,.55)">drag to look around</span>
+      <button data-om="onlySm" onClick="{{ hallNext }}" style="border:1px solid rgba(224,163,46,.6);background:rgba(5,9,11,.75);color:#E0A32E;padding:13px 18px;min-height:46px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px">advance to the next circle →</button>
+    </div>
+
+    <sc-if value="{{ moreInfo }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ openInfo }}" style="position:absolute;left:50%;bottom:84px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;border:1px solid #E0A32E;background:rgba(5,9,11,.82);color:#E0A32E;padding:14px 22px;min-height:48px;font:500 12px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;border-radius:2px;animation:wf-rise 220ms cubic-bezier(.32,.72,0,1) both" style-hover="background:#E0A32E;color:#05090b">ⓘ more info · {{ readyName }}</button>
+    </sc-if>
+
+    <sc-if value="{{ cartelaOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closeCartela }}" style="position:absolute;inset:0;background:rgba(3,6,9,.45)"></div>
+      <div role="dialog" aria-modal="true" data-om="cartelaModal" style="position:absolute;right:20px;top:20px;bottom:20px;width:min(480px,42vw);overflow:auto;background:#0B1A21;border:1px solid rgba(110,96,71,.8);border-radius:2px;animation:wf-rise 220ms cubic-bezier(.32,.72,0,1) both">
+        <div style="position:relative">
+          <img src="{{ cartelaImg }}" alt="{{ cartelaName }}" style="display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#12303A" />
+          <button onClick="{{ closeCartela }}" title="close" style="position:absolute;right:10px;top:10px;width:36px;height:36px;border:1px solid rgba(242,233,216,.4);border-radius:2px;background:rgba(5,9,11,.72);color:#F2E9D8;font-size:15px;line-height:1">✕</button>
+          <span style="position:absolute;left:10px;bottom:10px;background:rgba(5,9,11,.72);border:1px solid rgba(110,96,71,.6);padding:5px 8px;font:500 9px/1.4 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:rgba(242,233,216,.65)">{{ cartelaCredit }}</span>
+        </div>
+        <div style="padding:20px 22px 22px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+            <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:#E0A32E">vessel · {{ cartelaIndex }}/4</span>
+            <span style="font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:#6E6047">{{ cartelaOrigin }}</span>
+          </div>
+          <div data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:clamp(28px,2.4vw,36px);line-height:1.05;letter-spacing:-.02em;color:#F2E9D8;margin:10px 0 14px">{{ cartelaName }}</div>
+          <p style="margin:0 0 18px;font:400 16px/1.65 Newsreader,serif;color:#F2E9D8">{{ cartelaText }}</p>
+          <div style="display:grid;gap:1px;background:rgba(110,96,71,.5);border-top:1px solid rgba(110,96,71,.5);border-bottom:1px solid rgba(110,96,71,.5)">
+            <div style="background:#0B1A21;display:flex;justify-content:space-between;gap:10px;padding:10px 0;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase"><span style="color:#6E6047">length</span><span style="color:#F2E9D8">{{ cartelaLength }}</span></div>
+            <div style="background:#0B1A21;display:flex;justify-content:space-between;gap:10px;padding:10px 0;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase"><span style="color:#6E6047">beam</span><span style="color:#F2E9D8">{{ cartelaBeam }}</span></div>
+            <div style="background:#0B1A21;display:flex;justify-content:space-between;gap:10px;padding:10px 0;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase"><span style="color:#6E6047">crew</span><span style="color:#F2E9D8">{{ cartelaCrew }}</span></div>
+            <div style="background:#0B1A21;display:flex;justify-content:space-between;gap:10px;padding:10px 0;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase"><span style="color:#6E6047">material</span><span style="color:#F2E9D8">{{ cartelaMaterial }}</span></div>
+            <div style="background:#0B1A21;display:flex;justify-content:space-between;gap:10px;padding:10px 0;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase"><span style="color:#6E6047">built</span><span style="color:#F2E9D8">{{ cartelaBuilt }}</span></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:16px">
+            <span style="font:400 10px/1.5 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;color:#6E6047">data to be verified before publishing</span>
+            <button onClick="{{ closeCartela }}" style="border:1px solid #E0A32E;background:transparent;color:#E0A32E;padding:10px 16px;min-height:40px;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px" style-hover="background:#E0A32E;color:#05090b">close</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<!-- ══ LOADING SCREEN ══ -->
+<sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+  <div style="{{ loaderStyle }}">
+    <div style="width:min(340px,72vw)">
+      <div style="display:flex;justify-content:space-between;font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit);margin-bottom:10px">
+        <span>{{ loadResource }}</span><span style="color:var(--olena)">{{ loadPct }}%</span>
+      </div>
+      <div style="height:1px;background:var(--rule);position:relative">
+        <div style="{{ loadBar }}"></div>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;initialMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;día&quot;,&quot;noche&quot;],&quot;default&quot;:&quot;día&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Condición de navegación&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#B87A15&quot;,&quot;options&quot;:[&quot;#B87A15&quot;,&quot;#8C6A2F&quot;,&quot;#9A5A2A&quot;,&quot;#2F6B70&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Condición de navegación&quot;},&quot;ambientMotion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Movimiento&quot;}}">
+const HOUSES = ['Haka', 'Nā Leo', 'Nālani', 'Manu', 'Noio', 'ʻĀina', 'Lā'];
+const CARDINALS = { 0: 'ʻĀkau', 90: 'Hikina', 180: 'Hema', 270: 'Komohana' };
+const QUAD = { 1: 'Koʻolau', 2: 'Malanai', 3: 'Kona', 4: 'Hoʻolua' };
+const STARS = {
+  0: 'Hōkūpaʻa', 67.5: 'Hōkūleʻa', 90: 'Nā Kao', 112.5: 'Hikianalia',
+  180: 'Hānaiakamalama', 247.5: 'Hikianalia', 270: 'Nā Kao', 292.5: 'Hōkūleʻa'
+};
+const SUN = { 0: 'noon shadow', 67.5: 'june sunrise', 90: 'equinox sunrise', 112.5: 'december sunrise', 180: 'high sun', 270: 'equinox sunset' };
+
+function buildHouses() {
+  const out = [];
+  for (let i = 0; i < 32; i++) {
+    const deg = i * 11.25;
+    let name, quad;
+    if (CARDINALS[deg]) { name = CARDINALS[deg]; quad = null; }
+    else {
+      const q = Math.floor(deg / 90) + 1;
+      const within = (deg % 90) / 11.25;
+      const idx = q % 2 === 1 ? within - 1 : 7 - within;
+      name = HOUSES[Math.round(idx)];
+      quad = QUAD[q];
+    }
+    out.push({ i, deg, name, quad, star: STARS[deg] || null, sun: SUN[deg] || null });
+  }
+  return out;
+}
+
+const SHIPS = [
+  { name: 'Hōkūleʻa', origin: 'Hawaiʻi', length: '19.0 m', beam: '6.1 m', crew: '12–16', built: '1975 · kualoa, oʻahu', material: 'plywood · koa · fiberglass',
+    img: './images/hokulea.jpg', credit: 'photo · phil uhl · cc by-sa 3.0 · wikimedia', koa: 0x5b3a23, sail: 0xd2bd93,
+    text: 'Launched in 1975, Hōkūleʻa proved that Polynesia was settled by deliberate navigation: in 1976 she sailed from Hawaiʻi to Tahiti guided only by stars, swells and birds, with Mau Piailug as navigator. Between 2013 and 2017 she circled the planet on the Mālama Honua voyage.' },
+  { name: 'Tipairua', origin: 'Tahiti', length: '≈ 22 m', beam: 'pending', crew: '≈ 16', built: 'faʻafaite · 2009', material: 'wood · modern composite',
+    img: './images/tipairua.jpg', credit: 'faʻafaite · raivavae · cc by-sa 4.0 · wikimedia', koa: 0x4a3b2a, sail: 0xc9ae86,
+    text: 'The tipairua is the great double-hulled voyaging canoe of the Society Islands, described by the first European visitors to Tahiti. Its modern revival, Faʻafaite i te Ao Māʻohi (2009), retraces the old routes across French Polynesia and beyond.' },
+  { name: 'Te Aurere', origin: 'Aotearoa', length: '17.4 m', beam: 'pending', crew: '≈ 12', built: '1991–92 · doubtless bay', material: 'kauri',
+    img: './images/teaurere.jpg', credit: 'photo · w. bulach · cc by-sa 4.0 · wikimedia', koa: 0x53321f, sail: 0xbfae90,
+    text: 'Built in 1991–92 by Hekenukumai Busby from two great kauri trunks, Te Aurere returned deep-ocean waka hourua sailing to Aotearoa. She has crossed to Rarotonga, Hawaiʻi and Rapa Nui using traditional navigation.' },
+  { name: 'Te Puke', origin: 'Taumako', length: '≈ 9 m', beam: '—', crew: '4–6', built: 'living tradition', material: 'timber · sennit · woven sail',
+    img: './images/tepuke.jpg', credit: 'tepuke maunga nefe · bin im garten · cc by-sa 3.0 · wikimedia', koa: 0x604227, sail: 0xd8c9a6,
+    text: 'The tepuke of Taumako, in the Duff Islands, rides on a submerged hull with a crab-claw sail of woven leaves — a design unlike any other surviving Pacific craft. The Vaka Taumako Project still builds and sails them with entirely local materials.' }
+];
+
+const SECTIONS = [
+  ['hero', 'hikina · 090°'], ['anatomia', 'ʻākau · 000°'], ['estrellas', 'koʻolau · 045°'],
+  ['ar', 'kona · 225°'], ['sala', 'hema · 180°'], ['bitacora', 'komohana · 270°']
+];
+
+class Component extends DCLogic {
+  state = {
+    mode: 'day', view: 'all', piece: null, house: 8, hover: null,
+    hotspot: null, compare: false, hallOpen: false, cartela: null, near: -1, ready: -1, arNote: null,
+    loading: false, pct: 0, resource: 'loading', small: false
+  };
+  houses = buildHouses();
+  refs = {};
+
+  /* ---------- lifecycle ---------- */
+  componentDidMount() {
+    const saved = localStorage.getItem('wayfinder-mode');
+    const initial = saved || (this.props.initialMode === 'noche' ? 'night' : 'day');
+    this.applyMode(initial);
+    this.setState({ mode: initial, small: innerWidth < 1024 });
+    if (this.props.accent) document.documentElement.style.setProperty('--olena', this.props.accent);
+
+    this.reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.onScroll = () => { if (!this.tick) { this.tick = requestAnimationFrame(() => { this.tick = 0; this.scroll(); }); } };
+    this.onResize = () => this.setState({ small: innerWidth < 1024 });
+    this.onKey = e => {
+      if (e.key !== 'Escape') return;
+      if (this.state.cartela != null) this.closeCartela();
+      else if (this.state.hallOpen) this.closeHall();
+    };
+    addEventListener('scroll', this.onScroll, { passive: true });
+    addEventListener('resize', this.onResize);
+    addEventListener('keydown', this.onKey);
+    this.scroll();
+
+    if (performance.now() < 6000) this.runLoader();
+    this.boot();
+  }
+
+  componentWillUnmount() {
+    removeEventListener('scroll', this.onScroll);
+    removeEventListener('resize', this.onResize);
+    removeEventListener('keydown', this.onKey);
+    this.scenes && Object.values(this.scenes).forEach(s => s && s.dispose && s.dispose());
+  }
+
+  async boot() {
+    for (let i = 0; i < 120 && !window.THREE; i++) await new Promise(r => setTimeout(r, 80));
+    if (!window.THREE) return;
+    this.THREE = window.THREE;
+    this.lib = await import('./wayfinder-3d.js');
+    this.scenes = {};
+    this.mountScenes();
+    // if the hall was opened before loading finished, mount it now
+    if (this.state.hallOpen && this.refs.hallCanvas) this.mountHall(this.refs.hallCanvas);
+  }
+
+  mountScenes() {
+    if (!this.lib || !this.scenes) return;
+    const T = this.THREE, r = this.refs;
+    if (r.hero && !this.scenes.hero) {
+      this.scenes.hero = this.lib.createHeroScene(T, r.hero);
+      if (this.reduce || this.props.ambientMotion === false) this.scenes.hero.setSway(false);
+    }
+    if (r.anatomy && !this.scenes.anatomy) {
+      this.scenes.anatomy = this.lib.createAnatomyScene(T, r.anatomy);
+      if (this.state.small) this.scenes.anatomy.snap(0.9);
+    }
+    if (r.table && !this.scenes.table) this.scenes.table = this.lib.createTableScene(T, r.table);
+    Object.values(this.scenes).forEach(s => s && s.setMode && s.setMode(this.state.mode));
+    this.scroll();
+  }
+
+  // Ref callbacks are cached by name: if their identity changed on every
+  // render, React would detach and re-attach them on each setState, and the
+  // hall would be destroyed and recreated (the player kept snapping back to the entrance).
+  ref = name => {
+    this.refFns = this.refFns || {};
+    if (!this.refFns[name]) this.refFns[name] = node => {
+      if (!node) {
+        delete this.refs[name];
+        if (name === 'hallCanvas' && this.scenes && this.scenes.hall) { this.scenes.hall.dispose(); delete this.scenes.hall; }
+        return;
+      }
+      this.refs[name] = node;
+      if (name === 'hallCanvas') this.mountHall(node);
+      if (['hero', 'anatomy', 'table'].includes(name)) this.mountScenes();
+    };
+    return this.refFns[name];
+  };
+
+  mountHall = node => {
+    if (!node || !node.isConnected || !this.lib || !this.scenes || this.scenes.hall) return;
+    this.scenes.hall = this.lib.createHall(this.THREE, node, {
+      ships: SHIPS,
+      onReady: i => this.setState({ ready: i }),
+      onNear: i => this.setState({ near: i })
+    });
+    node.addEventListener('click', () => {
+      if (!this.scenes.hall || this.state.cartela != null) return;
+      // with the pointer locked, clicking while inside a circle opens the label card
+      if (document.pointerLockElement === node && this.state.ready >= 0) this.openCartela(this.state.ready);
+      else this.scenes.hall.lock();
+    });
+  };
+
+  /* ---------- scroll ---------- */
+  scroll() {
+    const doc = document.documentElement;
+    const max = doc.scrollHeight - innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+    const r = this.refs;
+    if (r.ring) r.ring.style.transform = 'rotate(' + (p * 300).toFixed(2) + 'deg)';
+    if (r.arc) r.arc.setAttribute('stroke-dashoffset', (144.5 * (1 - p)).toFixed(1));
+    if (r.pct) r.pct.textContent = String(Math.round(p * 100)).padStart(2, '0');
+
+    let active = SECTIONS[0];
+    SECTIONS.forEach(s => {
+      const el = document.getElementById(s[0]);
+      if (el && el.getBoundingClientRect().top <= innerHeight * 0.42) active = s;
+    });
+    if (r.rumbo && r.rumbo.textContent !== active[1]) r.rumbo.textContent = active[1];
+
+    const track = document.getElementById('anatomia');
+    if (track && this.scenes && this.scenes.anatomy) {
+      if (this.state.small) { this.scenes.anatomy.snap(0.9); }
+      else {
+        const b = track.getBoundingClientRect();
+        const span = b.height - innerHeight;
+        const e = span > 0 ? Math.min(1, Math.max(0, -b.top / span)) : 0;
+        this.scenes.anatomy.setExplode(e);
+        if (r.bar) r.bar.style.width = (e * 100).toFixed(0) + '%';
+        if (r.epct) r.epct.textContent = Math.round(e * 100) + '%';
+      }
+    }
+  }
+
+  /* ---------- mode ---------- */
+  applyMode(m) {
+    document.documentElement.dataset.mode = m;
+    if (this.scenes) Object.values(this.scenes).forEach(s => s && s.setMode && s.setMode(m));
+  }
+  setMode = m => { localStorage.setItem('wayfinder-mode', m); this.applyMode(m); this.setState({ mode: m }); };
+
+  /* ---------- loader ---------- */
+  runLoader() {
+    const steps = [['hull · koa', 22], ['sails · lauhala', 48], ['lashings · ʻaha', 71], ['sky · hōkū', 92], ['ready', 100]];
+    this.setState({ loading: true, pct: 0, resource: 'loading' });
+    let i = 0;
+    const next = () => {
+      if (i >= steps.length) { setTimeout(() => this.setState({ loading: false }), 380); return; }
+      const [resource, pct] = steps[i++];
+      this.setState({ resource, pct });
+      setTimeout(next, 260);
+    };
+    setTimeout(next, 200);
+  }
+
+  /* ---------- star compass ---------- */
+  rose() {
+    const R = React.createElement;
+    const night = this.state.mode === 'night';
+    const sel = this.state.house, hov = this.state.hover;
+    const kids = [
+      R('circle', { key: 'o', cx: 200, cy: 200, r: 176, fill: 'none', stroke: 'var(--rule)', strokeWidth: 1 }),
+      R('circle', { key: 'i', cx: 200, cy: 200, r: 96, fill: 'none', stroke: 'var(--rule)', strokeWidth: 1 }),
+      R('circle', { key: 'c', cx: 200, cy: 200, r: 3, fill: 'var(--olena)' })
+    ];
+    this.houses.forEach(h => {
+      const a = (h.deg - 90) * Math.PI / 180;
+      const isCard = !h.quad;
+      const on = h.i === sel, hovered = h.i === hov;
+      const r1 = 96, r2 = isCard ? 176 : 158;
+      const col = on ? 'var(--olena)' : hovered ? 'var(--foam)' : 'var(--sennit)';
+      kids.push(R('line', {
+        key: 'l' + h.i, x1: 200 + Math.cos(a) * r1, y1: 200 + Math.sin(a) * r1,
+        x2: 200 + Math.cos(a) * r2, y2: 200 + Math.sin(a) * r2,
+        stroke: col, strokeWidth: on ? 2 : isCard ? 1.4 : 1, opacity: on ? 1 : hovered ? .9 : .5
+      }));
+      const dr = isCard ? 192 : 172;
+      if (isCard || on || hovered) kids.push(R('text', {
+        key: 't' + h.i, x: 200 + Math.cos(a) * dr, y: 200 + Math.sin(a) * dr,
+        textAnchor: 'middle', dominantBaseline: 'middle',
+        style: { font: "500 " + (isCard ? 11 : 10) + "px 'IBM Plex Mono', monospace", letterSpacing: '.1em', textTransform: 'uppercase', fill: on ? 'var(--olena)' : 'var(--foam)' }
+      }, h.name));
+      if (night && h.star) kids.push(R('circle', {
+        key: 's' + h.i, cx: 200 + Math.cos(a) * 138, cy: 200 + Math.sin(a) * 138,
+        r: on ? 4 : 2.6, fill: 'var(--olena)', opacity: on ? 1 : .6
+      }));
+      kids.push(R('circle', {
+        key: 'h' + h.i, cx: 200 + Math.cos(a) * 130, cy: 200 + Math.sin(a) * 130, r: 15,
+        fill: 'transparent', style: { cursor: 'pointer' },
+        onMouseEnter: () => this.setState({ hover: h.i }),
+        onMouseLeave: () => this.setState({ hover: null }),
+        onClick: () => this.setState({ house: h.i })
+      }));
+    });
+    return R('svg', {
+      viewBox: '-52 -34 504 468', width: '100%', tabIndex: 0,
+      role: 'listbox', 'aria-label': 'star compass, 32 houses of the horizon',
+      style: { display: 'block', maxWidth: 440, margin: '0 auto', outlineOffset: 4 },
+      onKeyDown: e => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { this.setState(s => ({ house: (s.house + 1) % 32 })); e.preventDefault(); }
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { this.setState(s => ({ house: (s.house + 31) % 32 })); e.preventDefault(); }
+      }
+    }, kids);
+  }
+
+  /* ---------- derived styles ---------- */
+  segBtn(active) {
+    return 'border:none;border-right:1px solid var(--rule);background:' + (active ? 'var(--olena)' : 'transparent') +
+      ';color:' + (active ? 'var(--hull)' : 'var(--sennit)') +
+      ';padding:12px 16px;min-height:44px;font:500 11px/1 \'IBM Plex Mono\',monospace;letter-spacing:.14em;text-transform:uppercase;transition:all 300ms var(--ease)';
+  }
+  hotStyle(i, pos) {
+    const open = this.state.hotspot === i;
+    return 'position:absolute;' + pos + ';z-index:4;min-height:28px;border-radius:' + (open ? '2px' : '50%') +
+      ';border:1px solid var(--olena);background:' + (open ? 'var(--olena)' : 'transparent') +
+      ';color:' + (open ? 'var(--hull)' : 'var(--olena)') +
+      ';padding:' + (open ? '7px 10px' : '0') + ';width:' + (open ? 'auto' : '28px') + ';height:28px;' +
+      'display:flex;align-items:center;justify-content:center;font:500 10px/1 \'IBM Plex Mono\',monospace;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;transition:all 300ms var(--ease)';
+  }
+
+  renderVals() {
+    const s = this.state;
+    const h = this.houses[s.house];
+    const night = s.mode === 'night';
+    const hot = ['18.9 m', '5.4 m', '9.1 m', '0.7 m'];
+    const ship = s.cartela != null ? SHIPS[s.cartela] : null;
+    const R = React.createElement;
+
+    return {
+      ringRef: this.ref('ring'), arcRef: this.ref('arc'), rumboRef: this.ref('rumbo'), pctRef: this.ref('pct'),
+      explodeBar: this.ref('bar'), explodePct: this.ref('epct'),
+      heroCanvas: this.ref('hero'), anatomyCanvas: this.ref('anatomy'), tableCanvas: this.ref('table'), hallCanvas: this.ref('hallCanvas'),
+
+      modeGlyph: night ? '☾' : '☀',
+      toggleMode: () => this.setMode(night ? 'day' : 'night'),
+      goNight: () => this.setMode('night'),
+      isDay: !night,
+
+      viewAll: () => this.setState({ view: 'all', piece: this.scenes && this.scenes.hero ? this.scenes.hero.focus('all') : null }),
+      viewBow: () => this.setState({ view: 'bow', piece: this.scenes && this.scenes.hero ? this.scenes.hero.focus('bow') : null }),
+      viewSail: () => this.setState({ view: 'sail', piece: this.scenes && this.scenes.hero ? this.scenes.hero.focus('sail') : null }),
+      viewHull: () => this.setState({ view: 'hull', piece: this.scenes && this.scenes.hero ? this.scenes.hero.focus('hull') : null }),
+      btnAll: this.segBtn(s.view === 'all'), btnBow: this.segBtn(s.view === 'bow'),
+      btnSail: this.segBtn(s.view === 'sail'), btnHull: this.segBtn(s.view === 'hull') + ';border-right:none',
+      pieceLabel: s.piece || '',
+      pieceStyle: 'font:500 12px/1 \'IBM Plex Mono\',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena);opacity:' + (s.piece ? 1 : 0) + ';transition:opacity 300ms var(--ease)',
+
+      rose: this.rose(),
+      houseName: h.quad ? h.name + ' ' + h.quad : h.name,
+      houseDeg: (h.deg === 0 ? '000' : String(Math.round(h.deg)).padStart(3, '0')) + '° · house ' + (h.i + 1) + '/32',
+      houseKeyLabel: night ? 'reference star' : 'sun reference',
+      houseKeyValue: (night ? h.star : h.sun) || '—',
+      houseNote: night
+        ? (h.star ? 'Rises and sets within this house. The navigator memorises the whole sequence, not a single star.' : 'House with no star assigned in this placeholder. Pending verification with a source.')
+        : 'By day the heading is held with the position of the sun and the direction of the dominant swell.',
+
+      hot0: () => this.setState({ hotspot: s.hotspot === 0 ? null : 0 }),
+      hot1: () => this.setState({ hotspot: s.hotspot === 1 ? null : 1 }),
+      hot2: () => this.setState({ hotspot: s.hotspot === 2 ? null : 2 }),
+      hot3: () => this.setState({ hotspot: s.hotspot === 3 ? null : 3 }),
+      hotA: this.hotStyle(0, 'left:18%;top:58%'), hotB: this.hotStyle(1, 'left:47%;top:74%'),
+      hotC: this.hotStyle(2, 'left:56%;top:20%'), hotD: this.hotStyle(3, 'left:78%;top:64%'),
+      hotLabel0: s.hotspot === 0 ? 'length ' + hot[0] : '⊙', hotLabel1: s.hotspot === 1 ? 'beam ' + hot[1] : '⊙',
+      hotLabel2: s.hotspot === 2 ? 'mast ' + hot[2] : '⊙', hotLabel3: s.hotspot === 3 ? 'draft ' + hot[3] : '⊙',
+      launchAR: () => this.startAR(),
+      arNoteOpen: !!s.arNote,
+      arNote: s.arNote || '',
+      compare: s.compare,
+      toggleCompare: () => this.setState({ compare: !s.compare }),
+      compareBtn: 'flex:1 1 170px;border:1px solid ' + (s.compare ? 'var(--olena)' : 'var(--rule)') + ';background:transparent;color:' + (s.compare ? 'var(--olena)' : 'var(--sennit)') + ';padding:14px 18px;min-height:46px;font:500 12px/1 \'IBM Plex Mono\',monospace;letter-spacing:.14em;text-transform:uppercase;border-radius:2px;transition:all 300ms var(--ease)',
+
+      hallOpen: s.hallOpen,
+      openHall: () => { document.body.style.overflow = 'hidden'; this.setState({ hallOpen: true, cartela: null, near: -1, ready: -1 }); },
+      closeHall: this.closeHall,
+      hallNext: () => { const n = (s.near < 0 ? 0 : Math.min(3, s.near + 1)); this.scenes && this.scenes.hall && this.scenes.hall.travelTo(n); },
+      moreInfo: s.hallOpen && s.ready >= 0 && s.cartela == null,
+      readyName: s.ready >= 0 ? SHIPS[s.ready].name : '',
+      openInfo: () => this.openCartela(this.state.ready),
+      hallDots: R('div', { style: { display: 'flex', gap: 9 } }, SHIPS.map((sh, i) => R('span', {
+        key: i, title: sh.name,
+        style: {
+          width: 9, height: 9, borderRadius: '50%', border: '1px solid #E0A32E',
+          background: s.cartela === i ? '#E0A32E' : 'transparent',
+          opacity: s.near === i ? 1 : .45, transition: 'all 300ms cubic-bezier(.32,.72,0,1)'
+        }
+      }))),
+      cartelaOpen: ship != null,
+      cartelaIndex: ship ? s.cartela + 1 : 1,
+      cartelaName: ship ? ship.name : '',
+      cartelaOrigin: ship ? ship.origin : '',
+      cartelaLength: ship ? ship.length : '',
+      cartelaBeam: ship ? ship.beam : '',
+      cartelaCrew: ship ? ship.crew : '',
+      cartelaBuilt: ship ? ship.built : '',
+      cartelaMaterial: ship ? ship.material : '',
+      cartelaText: ship ? ship.text : '',
+      cartelaImg: ship ? ship.img : '',
+      cartelaCredit: ship ? ship.credit : '',
+      closeCartela: this.closeCartela,
+
+      loading: s.loading,
+      loadPct: String(s.pct).padStart(2, '0'),
+      loadResource: s.resource,
+      loadBar: 'position:absolute;left:0;top:0;height:1px;width:' + s.pct + '%;background:var(--olena);transition:width 260ms linear',
+      loaderStyle: 'position:fixed;inset:0;z-index:300;background:var(--hull);display:flex;align-items:center;justify-content:center;transition:opacity 400ms var(--ease)',
+      replayLoader: () => this.runLoader(),
+      mailto: () => { location.href = 'mailto:hola@example.com'; }
+    };
+  }
+
+  // Augmented reality (WebXR): opens the camera and places the vessel at real size.
+  startAR = async () => {
+    if (!this.lib || !this.THREE || !this.lib.startAR || this.arActive) return;
+    this.arActive = true;
+    this.setState({ arNote: null });
+    const r = await this.lib.startAR(this.THREE, { onEnd: () => { this.arActive = false; } });
+    if (!r.ok) {
+      this.arActive = false;
+      const msgs = {
+        'no-webxr': 'webxr is not available in this browser · use chrome on android over https',
+        'unsupported': 'ar is not supported on this device · needs android + chrome (arcore) over https',
+        'denied': 'the ar session was blocked · allow camera access and try again',
+        'no-model': 'the model is still loading · try again in a moment'
+      };
+      this.setState({ arNote: msgs[r.reason] || 'ar unavailable on this device' });
+    }
+  };
+
+  openCartela = i => {
+    if (i == null || i < 0) return;
+    const hall = this.scenes && this.scenes.hall;
+    if (hall) { hall.unlock(); hall.setFrozen(true); }
+    this.setState({ cartela: i });
+  };
+
+  closeCartela = () => {
+    const hall = this.scenes && this.scenes.hall;
+    if (hall) hall.setFrozen(false);
+    this.setState({ cartela: null });
+  };
+
+  closeHall = () => {
+    document.body.style.overflow = '';
+    if (this.scenes && this.scenes.hall) { this.scenes.hall.unlock(); this.scenes.hall.dispose(); delete this.scenes.hall; }
+    this.setState({ hallOpen: false, cartela: null, ready: -1 });
+  };
+}
+
+</script>
+</body>
+</html>
