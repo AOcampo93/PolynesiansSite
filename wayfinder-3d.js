@@ -167,6 +167,11 @@ export const CFG = {
     fallo: { segundos: 8, alivio: 2 },  // sustained off-course seconds to miss the island · timer drain rate back on course
     cielo: { fondo: 0x030a10, radio: 88, estrellas: 460, tam: 1.6, opacidad: 0.85 },
       // night dome: background color, dome radius, star count, point size (px), star brightness
+    rejilla: { latitudes: 15, meridianos: 22.5, color: 0x8a7c63, opacidad: 0.13 },
+      // celestial grid: altitude-ring step (deg, 0 = none), meridian step (deg, 0 = none), line color, opacity
+    flujoOlas: 3,                   // exaggeration of the swell streaming past the hull (1 = physical speed)
+    espuma: { cantidad: 90, ancho: 30, largo: 46, tam: 2.2, opacidad: 0.5, vel: 2.4 },
+      // foam flecks drifting astern (the motion cue): count, field width/length, point size (px), opacity, speed multiplier
     niebla: { cerca: 26, lejos: 80 }, // fog distances (hides the ocean rim and fades the island in)
     estrellaGuia: { color: 0xffe9b0, tam: 7, altInicial: 10, altTraspaso: 34, pulso: 2.4 },
       // guide star sprite: tint, size, starting altitude (deg), altitude reached at each handoff, handoff pulse speed
@@ -175,7 +180,7 @@ export const CFG = {
     senales: {                      // land signs, as fractions of total progress
       aves: { progreso: 0.55, cantidad: 6, radio: 16, altura: 3.4, vel: 0.5, tam: 0.34 }, // terns crossing ahead
       nube: { progreso: 0.62, altura: 10, escala: 5.5, color: 0x9aa4a8, opacidad: 0.8 },  // lone cumulus over the island
-      isla: { progreso: 0.8, radio: 7, alto: 3, color: 0x101b16 }                          // island cone past the horizon
+      isla: { progreso: 0.66, desde: 60, radio: 7, alto: 3.6, color: 0x101b16 }             // island: unlock progress, distance where it first shows, size, color
     }
   },
 
@@ -1113,6 +1118,41 @@ export function createGameScene(THREE, canvas, opts = {}) {
   const starMat = new THREE.PointsMaterial({ color: 0xf2e9d8, size: J.cielo.tam, sizeAttenuation: false, transparent: true, opacity: J.cielo.opacidad, fog: false, depthWrite: false });
   world.add(new THREE.Points(starGeo, starMat));
 
+  // celestial grid: altitude rings (latitudes) plus house meridians
+  if (J.rejilla && (J.rejilla.latitudes || J.rejilla.meridianos)) {
+    const segs = [];
+    const Rg = J.cielo.radio * 0.99;
+    const P = (az, alt) => [Math.sin(az) * Math.cos(alt) * Rg, Math.sin(alt) * Rg, -Math.cos(az) * Math.cos(alt) * Rg];
+    if (J.rejilla.latitudes) {
+      for (let a = J.rejilla.latitudes; a < 90; a += J.rejilla.latitudes) {
+        const alt = a * D2R, n = 96;
+        for (let i = 0; i < n; i++) segs.push(...P(i / n * Math.PI * 2, alt), ...P((i + 1) / n * Math.PI * 2, alt));
+      }
+    }
+    if (J.rejilla.meridianos) {
+      for (let m = 0; m < 360; m += J.rejilla.meridianos) {
+        const az = m * D2R, n = 24, top = 84 * D2R;
+        for (let i = 0; i < n; i++) segs.push(...P(az, i / n * top), ...P(az, (i + 1) / n * top));
+      }
+    }
+    const gridGeo = new THREE.BufferGeometry();
+    gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(segs, 3));
+    world.add(new THREE.LineSegments(gridGeo, new THREE.LineBasicMaterial({ color: J.rejilla.color, transparent: true, opacity: J.rejilla.opacidad, fog: false, depthWrite: false })));
+  }
+
+  // foam flecks in the boat frame, streaming astern while sailing
+  const foamN = J.espuma.cantidad;
+  const foamPos = new Float32Array(foamN * 3);
+  for (let i = 0; i < foamN; i++) {
+    foamPos[i * 3] = (Math.random() - 0.5) * J.espuma.ancho;
+    foamPos[i * 3 + 1] = 0.05 + Math.random() * 0.2;
+    foamPos[i * 3 + 2] = (Math.random() - 0.7) * J.espuma.largo;
+  }
+  const foamGeo = new THREE.BufferGeometry();
+  foamGeo.setAttribute('position', new THREE.BufferAttribute(foamPos, 3));
+  const foam = new THREE.Points(foamGeo, new THREE.PointsMaterial({ color: 0xdfe6e2, size: J.espuma.tam, sizeAttenuation: false, transparent: true, opacity: J.espuma.opacidad, depthWrite: false }));
+  scene.add(foam);
+
   // guide star (current) + preview of the next star in the path
   const starTex = starTexture(THREE, '#' + J.estrellaGuia.color.toString(16).padStart(6, '0'));
   const mkGuide = () => {
@@ -1281,8 +1321,8 @@ export function createGameScene(THREE, canvas, opts = {}) {
     }
 
     // island and cloud slide in along the target bearing as you close the distance
-    const rise = clamp((progress - S.isla.progreso) / (1 - S.isla.progreso), 0, 1);
-    const dIsl = J.niebla.lejos - (J.niebla.lejos - J.mar.radio * 0.5) * rise;
+    const rise = Math.sqrt(clamp((progress - S.isla.progreso) / (1 - S.isla.progreso), 0, 1));
+    const dIsl = S.isla.desde - (S.isla.desde - J.mar.radio * 0.5) * rise;
     island.position.set(Math.sin(J.rumboObjetivo * D2R) * dIsl, -S.isla.alto * 0.6 + rise * S.isla.alto * 1.1, -Math.cos(J.rumboObjetivo * D2R) * dIsl);
     if (cloud.visible) {
       cloudMat.opacity = Math.min(S.nube.opacidad, cloudMat.opacity + dt * 0.3);
@@ -1307,7 +1347,18 @@ export function createGameScene(THREE, canvas, opts = {}) {
     boat.rotation.x = Math.sin(t * (Math.PI * 2 / bal.periodoX) + 1) * bal.rotX;
     boat.position.y = Math.sin(t * (Math.PI * 2 / bal.periodoY)) * bal.subida;
     world.rotation.y = heading * D2R;
-    water.update(t, 0, pz);
+    water.update(t, 0, pz * J.flujoOlas);
+    // foam streams astern; a trickle while idle, full flow while sailing
+    {
+      const fa = foamGeo.attributes.position;
+      const spd = J.velocidad * J.espuma.vel * (phase === 'sailing' ? 1 : 0.15);
+      for (let i = 0; i < foamN; i++) {
+        let z = fa.getZ(i) + spd * dt;
+        if (z > J.espuma.largo * 0.3) { z = -J.espuma.largo * 0.7; fa.setX(i, (Math.random() - 0.5) * J.espuma.ancho); }
+        fa.setZ(i, z);
+      }
+      fa.needsUpdate = true;
+    }
     renderer.render(scene, camera);
   }
 
