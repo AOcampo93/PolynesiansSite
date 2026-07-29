@@ -653,7 +653,7 @@ class Component extends DCLogic {
     for (let i = 0; i < 120 && !window.THREE; i++) await new Promise(r => setTimeout(r, 80));
     if (!window.THREE) { this.setState({ loading: false }); return; }
     this.THREE = window.THREE;
-    this.lib = await import('./wayfinder-3d.js?v=4');
+    this.lib = await import('./wayfinder-3d.js?v=5');
     this.scenes = {};
     // real loading: the loader closes when the three models are downloaded and decoded
     this.lib.preloadBoats(pr => {

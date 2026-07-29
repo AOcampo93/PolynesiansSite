@@ -130,7 +130,7 @@ const $ = id => document.getElementById(id);
 const boot = async () => {
   for (let i = 0; i < 120 && !window.THREE; i++) await new Promise(r => setTimeout(r, 80));
   if (!window.THREE) { $('loadmsg').textContent = 'three.js failed to load · check your connection'; return; }
-  const lib = await import('./wayfinder-3d.js?v=4');
+  const lib = await import('./wayfinder-3d.js?v=5');
 
   let toastT = 0;
   const toast = msg => {
