@@ -9,7 +9,7 @@ An interactive 3D website about Polynesian wayfinding — the art of crossing th
 - **Hero ocean** — a double-hulled voyaging canoe (waʻa kaulua) floating on an animated low-poly sea with layered waves, drag-to-orbit camera and framed views (full / bow / sail / hull).
 - **Anatomy** — a scroll-driven exploded view that takes the canoe apart piece by piece: hulls, iako crossbeams, deck platform, crab-claw rigs and steering paddle.
 - **Star compass** — an interactive rose with the 32 houses of the horizon, keyboard-navigable, with per-house reference stars that appear in night mode.
-- **Augmented reality** — "view in your space" opens the device camera through WebXR: an aiming ring tracks the floor and a tap places the canoe at its real 19-meter size.
+- **Augmented reality** — "view in your space" opens the device camera: on Android, a WebXR session with an aiming ring that tracks the floor and places the canoe at its real 19-meter size on tap; on iPhone and iPad, the same button launches AR Quick Look with a USDZ model.
 - **Immersive hall** — a first-person gallery of four voyaging canoes (Hōkūleʻa, Tipairua, Te Aurere, Te Puke). Walk with WASD and pointer lock on desktop, drag-to-look and auto-travel on mobile; standing in a floor circle raises the spotlight over the vessel and opens an information panel with a real photograph and technical data.
 - **Day / night mode** — the whole scene rig (sky, sun, rim light, sea color) switches between navigation conditions, persisted across visits.
 
@@ -18,9 +18,9 @@ An interactive 3D website about Polynesian wayfinding — the art of crossing th
 | Area | Stack |
 |------|-------|
 | 3D rendering | [three.js](https://threejs.org/) (WebGL) |
-| Models | GLB / glTF loaded with `GLTFLoader`, normalized at runtime (orientation, scale, waterline) |
+| Models | GLB / glTF with Draco mesh compression, loaded with `GLTFLoader` + `DRACOLoader`, normalized at runtime (orientation, scale, waterline) |
 | Procedural geometry | Custom `BufferGeometry` for hulls, sails, rigging and an animated polar-grid ocean |
-| Augmented reality | WebXR `immersive-ar` session with hit-test and DOM overlay |
+| Augmented reality | WebXR `immersive-ar` with hit-test and DOM overlay (Android) · AR Quick Look with USDZ (iOS) |
 | First-person controls | Pointer Lock API + pointer events (touch look on mobile) |
 | UI runtime | Declarative HTML template compiled to React components |
 | Styling | Hand-written CSS custom properties, no framework |
@@ -38,7 +38,7 @@ python3 -m http.server 8000
 npx serve .
 ```
 
-Note: the WebXR AR mode requires a secure context (HTTPS or `localhost`) and an ARCore-capable Android device with Chrome.
+Note: the WebXR AR mode requires a secure context (HTTPS or `localhost`) and an ARCore-capable Android device with Chrome. On iOS the AR button uses Quick Look instead, which works in Safari and Chrome.
 
 ## Photo credits
 

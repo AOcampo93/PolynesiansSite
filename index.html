@@ -24,14 +24,15 @@
   --hull:#0B1A21; --depth:#12303A; --foam:#F2E9D8; --olena:#E0A32E;
   --noni:#8C2F2A; --sennit:#6E6047; --rule:rgba(110,96,71,.55);
 }
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;overflow-x:hidden;}
 body{margin:0;background:var(--hull);color:var(--foam);-webkit-font-smoothing:antialiased;
   font-family:Newsreader,Georgia,serif;transition:background 600ms var(--ease),color 600ms var(--ease);overflow-x:hidden;}
-*{box-sizing:border-box;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 a{color:var(--olena);text-decoration:none;border-bottom:1px solid var(--rule);}
 a:hover{color:var(--foam);border-bottom-color:var(--olena);}
 button{font-family:'IBM Plex Mono',monospace;cursor:pointer;}
 :focus-visible{outline:2px solid var(--olena);outline-offset:2px;}
+:focus:not(:focus-visible){outline:none;}
 canvas{display:block;touch-action:pan-y;}
 @keyframes wf-pulse{0%,100%{opacity:.35}50%{opacity:.9}}
 @keyframes wf-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
@@ -43,8 +44,9 @@ canvas{display:block;touch-action:pan-y;}
   [data-om="page"]{padding-left:0!important;padding-top:54px!important;}
   [data-om="display"]{font-family:Archivo,sans-serif!important;font-stretch:100%!important;}
   [data-om="hideSm"]{display:none!important;}
-  [data-om="anatomyTrack"]{height:auto!important;}
-  [data-om="anatomySticky"]{position:static!important;height:auto!important;}
+  [data-om="anatomySticky"]{height:100svh!important;}
+  [data-om-hero]{left:-5%!important;right:-5%!important;top:-8%!important;bottom:-2%!important;}
+  [data-om-heroframe]{height:clamp(360px,58vh,540px)!important;}
   [data-om="stage3d"]{min-height:52vh!important;}
   [data-om="cartelaModal"]{left:10px!important;right:10px!important;bottom:10px!important;top:auto!important;width:auto!important;max-height:calc(100% - 90px)!important;}
 }
@@ -91,7 +93,7 @@ canvas{display:block;touch-action:pan-y;}
 
 <div data-om="page" style="padding-left:86px;position:relative;z-index:2">
 
-  <header style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:26px clamp(20px,5vw,90px) 0">
+  <header style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:clamp(36px,5vh,60px) clamp(20px,5vw,90px) clamp(18px,3vh,34px)">
     <div style="display:flex;align-items:baseline;gap:14px">
       <span data-om="display" style="font-family:Archivo,sans-serif;font-stretch:125%;font-weight:600;font-size:19px;letter-spacing:-.01em;color:var(--foam)">wayfinder</span>
       <span style="font:400 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--sennit)">portfolio · three.js · webxr</span>
@@ -111,12 +113,12 @@ canvas{display:block;touch-action:pan-y;}
       <span data-om="hideSm" style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--sennit)">where the stars rise</span>
     </div>
 
-    <div style="position:relative;height:clamp(430px,68vh,720px)">
+    <div data-om-heroframe style="position:relative;height:clamp(430px,68vh,720px)">
       <div style="position:absolute;left:0;right:0;top:4%;bottom:16%;border:1px solid var(--rule)"></div>
       <div style="position:absolute;left:0;right:0;top:calc(4% - 1px);height:1px;background:var(--olena);opacity:.35"></div>
       <span data-om="hideSm" style="position:absolute;right:10px;top:4%;transform:translateY(-140%);font:500 10px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--sennit)">horizon line</span>
 
-      <div data-om="stage3d" style="position:absolute;left:-13%;right:-15%;top:-17%;bottom:-7%;z-index:2">
+      <div data-om="stage3d" data-om-hero style="position:absolute;left:-13%;right:-15%;top:-17%;bottom:-7%;z-index:2">
         <canvas ref="{{ heroCanvas }}" style="width:100%;height:100%;cursor:grab"></canvas>
       </div>
 
@@ -194,19 +196,19 @@ canvas{display:block;touch-action:pan-y;}
     </div>
 
     <div data-om="onlySm" style="padding:0 clamp(20px,5vw,90px) clamp(50px,7vh,80px);display:grid;gap:1px;background:var(--rule);border-top:1px solid var(--rule);margin-top:24px">
-      <div style="background:var(--hull);padding:16px 0">
+      <div style="background:var(--hull);padding:16px 14px">
         <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">length</div>
         <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">18.9 m</div>
       </div>
-      <div style="background:var(--hull);padding:16px 0">
+      <div style="background:var(--hull);padding:16px 14px">
         <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">sail · peʻa</div>
         <div style="font:400 15px/1.5 Newsreader,serif;margin-top:4px;color:var(--sennit)">hand-woven lauhala matting</div>
       </div>
-      <div style="background:var(--hull);padding:16px 0">
+      <div style="background:var(--hull);padding:16px 14px">
         <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">lashings · ʻaha</div>
         <div style="font:400 15px/1.5 Newsreader,serif;margin-top:4px;color:var(--sennit)">braided coconut fibre, not a single nail</div>
       </div>
-      <div style="background:var(--hull);padding:16px 0">
+      <div style="background:var(--hull);padding:16px 14px">
         <div style="font:500 11px/1 'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;color:var(--olena)">displacement</div>
         <div style="font-family:Archivo,sans-serif;font-weight:600;font-size:24px;margin-top:4px">12 t</div>
       </div>
@@ -584,7 +586,7 @@ class Component extends DCLogic {
     addEventListener('keydown', this.onKey);
     this.scroll();
 
-    if (performance.now() < 6000) this.runLoader();
+    this.setState({ loading: true, pct: 0, resource: 'models · waʻa' });
     this.boot();
   }
 
@@ -597,10 +599,20 @@ class Component extends DCLogic {
 
   async boot() {
     for (let i = 0; i < 120 && !window.THREE; i++) await new Promise(r => setTimeout(r, 80));
-    if (!window.THREE) return;
+    if (!window.THREE) { this.setState({ loading: false }); return; }
     this.THREE = window.THREE;
     this.lib = await import('./wayfinder-3d.js');
     this.scenes = {};
+    // real loading: the loader closes when the three models are downloaded and decoded
+    this.lib.preloadBoats(pr => {
+      const pct = Math.round(pr * 100);
+      const resource = pct < 25 ? 'hull · koa' : pct < 50 ? 'sails · lauhala' : pct < 75 ? 'lashings · ʻaha' : 'sky · hōkū';
+      if (this.state.loading) this.setState({ pct, resource });
+    }).then(() => {
+      if (!this.state.loading) return;
+      this.setState({ pct: 100, resource: 'ready' });
+      setTimeout(() => this.setState({ loading: false }), 380);
+    });
     this.mountScenes();
     // if the hall was opened before loading finished, mount it now
     if (this.state.hallOpen && this.refs.hallCanvas) this.mountHall(this.refs.hallCanvas);
@@ -615,7 +627,6 @@ class Component extends DCLogic {
     }
     if (r.anatomy && !this.scenes.anatomy) {
       this.scenes.anatomy = this.lib.createAnatomyScene(T, r.anatomy);
-      if (this.state.small) this.scenes.anatomy.snap(0.9);
     }
     if (r.table && !this.scenes.table) this.scenes.table = this.lib.createTableScene(T, r.table);
     Object.values(this.scenes).forEach(s => s && s.setMode && s.setMode(this.state.mode));
@@ -674,15 +685,12 @@ class Component extends DCLogic {
 
     const track = document.getElementById('anatomia');
     if (track && this.scenes && this.scenes.anatomy) {
-      if (this.state.small) { this.scenes.anatomy.snap(0.9); }
-      else {
-        const b = track.getBoundingClientRect();
-        const span = b.height - innerHeight;
-        const e = span > 0 ? Math.min(1, Math.max(0, -b.top / span)) : 0;
-        this.scenes.anatomy.setExplode(e);
-        if (r.bar) r.bar.style.width = (e * 100).toFixed(0) + '%';
-        if (r.epct) r.epct.textContent = Math.round(e * 100) + '%';
-      }
+      const b = track.getBoundingClientRect();
+      const span = b.height - innerHeight;
+      const e = span > 0 ? Math.min(1, Math.max(0, -b.top / span)) : 0;
+      this.scenes.anatomy.setExplode(e);
+      if (r.bar) r.bar.style.width = (e * 100).toFixed(0) + '%';
+      if (r.epct) r.epct.textContent = Math.round(e * 100) + '%';
     }
   }
 
@@ -864,6 +872,15 @@ class Component extends DCLogic {
 
   // Augmented reality (WebXR): opens the camera and places the vessel at real size.
   startAR = async () => {
+    // iPhone / iPad: no iOS browser ships WebXR — Apple's native path is AR Quick Look (USDZ)
+    const probe = document.createElement('a');
+    if (probe.relList && probe.relList.supports && probe.relList.supports('ar')) {
+      probe.rel = 'ar';
+      probe.appendChild(document.createElement('img'));
+      probe.href = './models/boat.usdz';
+      probe.click();
+      return;
+    }
     if (!this.lib || !this.THREE || !this.lib.startAR || this.arActive) return;
     this.arActive = true;
     this.setState({ arNote: null });

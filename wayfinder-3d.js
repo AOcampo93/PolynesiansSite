@@ -316,19 +316,40 @@ export function buildCanoe(THREE, opts = {}) {
 const BOAT_URLS = CFG.botes.archivos.map(f => new URL('./models/' + f, import.meta.url).href);
 let boatsPromise = null;
 
-// Loads the three GLBs only once; each entry can be null on failure.
+const progressCbs = [];
+
+// Loads the three GLBs only once (Draco-compressed); each entry can be null on failure.
 function loadBoats() {
   if (!boatsPromise) {
-    boatsPromise = import('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js/+esm')
-      .then(({ GLTFLoader }) => {
-        const loader = new GLTFLoader();
-        return Promise.all(BOAT_URLS.map(url =>
-          new Promise(res => loader.load(url, g => res(g.scene), undefined, () => res(null)))
-        ));
-      })
-      .catch(() => [null, null, null]);
+    boatsPromise = Promise.all([
+      import('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/GLTFLoader.js/+esm'),
+      import('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/loaders/DRACOLoader.js/+esm')
+    ]).then(([{ GLTFLoader }, { DRACOLoader }]) => {
+      const draco = new DRACOLoader();
+      draco.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.150.1/examples/jsm/libs/draco/');
+      const loader = new GLTFLoader();
+      loader.setDRACOLoader(draco);
+      const prog = BOAT_URLS.map(() => 0);
+      const emit = () => {
+        const p = prog.reduce((a, b) => a + b, 0) / prog.length;
+        progressCbs.forEach(cb => cb(p));
+      };
+      return Promise.all(BOAT_URLS.map((url, i) =>
+        new Promise(res => loader.load(url,
+          g => { prog[i] = 1; emit(); res(g.scene); },
+          e => { if (e && e.total) { prog[i] = Math.min(0.99, e.loaded / e.total); emit(); } },
+          () => { prog[i] = 1; emit(); res(null); }
+        ))
+      ));
+    }).catch(() => [null, null, null]);
   }
   return boatsPromise;
+}
+
+// Preloads every model reporting overall progress (0–1); drives the loading screen.
+export function preloadBoats(onProgress) {
+  if (onProgress) progressCbs.push(onProgress);
+  return loadBoats().then(models => { progressCbs.length = 0; return models; });
 }
 
 /** Clones and normalizes a GLB: length along Z, centered in XZ, keel at keelY. */
@@ -728,6 +749,21 @@ export function createHall(THREE, canvas, opts = {}) {
     touchLook.x = e.clientX; touchLook.y = e.clientY;
   };
   const onTouchUp = e => { if (touchLook && e.pointerId === touchLook.id) touchLook = null; };
+  // mobile: semi-transparent forward / back buttons (touch devices only)
+  let motion = 0, moveUI = null;
+  if (matchMedia('(pointer: coarse)').matches) {
+    moveUI = document.createElement('div');
+    moveUI.style.cssText = 'position:absolute;left:16px;bottom:88px;display:flex;flex-direction:column;gap:10px;z-index:5';
+    [['▲', 1], ['▼', -1]].forEach(([label, dir]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.style.cssText = "width:56px;height:56px;border-radius:50%;border:1px solid rgba(224,163,46,.45);background:rgba(5,9,11,.35);color:rgba(224,163,46,.9);font-size:18px;line-height:1;touch-action:none;-webkit-tap-highlight-color:transparent";
+      b.addEventListener('pointerdown', e => { e.preventDefault(); motion = dir; });
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => b.addEventListener(ev, () => { motion = 0; }));
+      moveUI.appendChild(b);
+    });
+    (canvas.parentElement || document.body).appendChild(moveUI);
+  }
   canvas.addEventListener('pointerdown', onTouchDown);
   window.addEventListener('pointermove', onTouchMove);
   window.addEventListener('pointerup', onTouchUp);
@@ -758,6 +794,12 @@ export function createHall(THREE, canvas, opts = {}) {
         // motion = forward·(-fz) + right·fx, consistent with YXZ rotation and yaw -= movementX
         cam.x += ((fx / len) * cosY + (fz / len) * sinY) * W.velocidad;
         cam.z += (-(fx / len) * sinY + (fz / len) * cosY) * W.velocidad;
+        travel = null;
+      }
+      if (motion) {
+        // touch buttons: walk along the view direction
+        cam.x += -Math.sin(cam.yaw) * W.velocidad * motion;
+        cam.z += -Math.cos(cam.yaw) * W.velocidad * motion;
         travel = null;
       }
       if (travel) {
@@ -821,6 +863,7 @@ export function createHall(THREE, canvas, opts = {}) {
       window.removeEventListener('pointermove', onTouchMove);
       window.removeEventListener('pointerup', onTouchUp);
       window.removeEventListener('pointercancel', onTouchUp);
+      moveUI && moveUI.remove();
       document.pointerLockElement === canvas && document.exitPointerLock();
       renderer.dispose();
     }
